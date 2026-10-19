@@ -281,6 +281,8 @@ Return strictly valid JSON:
       "label": string,
       "type": "worker" | "hazard" | "ppe",
       "severity": "Critical" | "High" | "Moderate" | "Low" | "OK" | "Unverified",
+      "description": string (specific hazard, infraction observation, or PPE item status),
+      "osha_standard": string (e.g. OSHA 1926.501, OSHA 1926.451, OSHA 1926.100),
       "bbox": { "x": float, "y": float, "w": float, "h": float }
     }
   ],
@@ -375,6 +377,80 @@ with tab1:
             </div>
             """, unsafe_allow_html=True)
             st.caption("ℹ️ *Hover note: Worker 1 is wearing hardhat and vest (100% PPE Pass). Missing tie-off is tracked under Fall Protection (OSHA 1926.501).*")
+
+            # --- DETAILED HAZARDS & DETECTED OBJECTS BREAKDOWN ---
+            st.markdown("---")
+            st.markdown("##### 📋 Detected Hazards & Visual Findings Breakdown")
+
+            dets = live_safety_data.get("detections", []) if (live_safety_data and "detections" in live_safety_data) else [
+                {
+                    "label": "Primary Ironworker (Zone B)",
+                    "type": "worker",
+                    "severity": "Critical",
+                    "osha_standard": "OSHA 1926.501(b)(1)",
+                    "description": "Ironworker positioned within 18 inches of leading edge at 32.4 ft without active fall arrest tie-off."
+                },
+                {
+                    "label": "Scaffolding Plank Gap / Perimeter Defect",
+                    "type": "hazard",
+                    "severity": "Moderate",
+                    "osha_standard": "OSHA 1926.451(g)(1)",
+                    "description": "Perimeter midrail missing between vertical standards. Missing outward-facing 3.5\" toeboard on cantilever."
+                },
+                {
+                    "label": "Hard Hat & High-Vis Safety Vest",
+                    "type": "ppe",
+                    "severity": "OK",
+                    "osha_standard": "OSHA 1926.100",
+                    "description": "Certified ANSI Z89.1 Type 1 hardhat and high-visibility reflective vest properly donned."
+                },
+                {
+                    "label": "Secondary Worker (Deck Background)",
+                    "type": "worker",
+                    "severity": "Unverified",
+                    "osha_standard": "Distance >60ft",
+                    "description": "Distant worker in safety gear visible on rear deck. Beyond high-resolution optical verification threshold."
+                }
+            ]
+
+            for d in dets:
+                dtype = d.get("type", "hazard")
+                sev = d.get("severity", "Moderate")
+                lbl = d.get("label", "Detected Item")
+                desc = d.get("description", "Identified by OSHA computer vision analysis.")
+                std = d.get("osha_standard", "")
+
+                if sev in ["Critical", "High"] or dtype == "hazard":
+                    card_border = "#ef4444"
+                    badge_html = f"<span class='badge-critical'>{sev.upper()}</span>"
+                    icon = "🚨"
+                elif sev == "OK" or dtype == "ppe":
+                    card_border = "#10b981"
+                    badge_html = f"<span class='badge-pass'>{sev.upper()}</span>"
+                    icon = "✅"
+                elif sev == "Unverified":
+                    card_border = "#64748b"
+                    badge_html = f"<span style='background:rgba(100,116,139,0.2);color:#94a3b8;border:1px solid #475569;padding:2px 6px;border-radius:4px;font-size:10px;font-family:monospace;'>{sev.upper()}</span>"
+                    icon = "ℹ️"
+                else:
+                    card_border = "#eab308"
+                    badge_html = f"<span class='badge-warn'>{sev.upper()}</span>"
+                    icon = "⚠️"
+
+                std_tag = f"<span style='color:#38bdf8;font-family:monospace;font-size:11px;font-weight:bold;margin-left:8px;'>[{std}]</span>" if std else ""
+
+                st.markdown(f"""
+                <div style="background: #090e1a; border: 1px solid #1c263c; border-left: 4px solid {card_border}; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                        <div>
+                            <span style="font-size:13px; font-weight:bold; color:#f8fafc;">{icon} {lbl}</span>
+                            {std_tag}
+                        </div>
+                        {badge_html}
+                    </div>
+                    <p style="font-size:11px; color:#cbd5e1; margin:0; line-height:1.4;">{desc}</p>
+                </div>
+                """, unsafe_allow_html=True)
 
     with col2:
         st.markdown("#### ⚠️ OSHA Risk Assessment")
