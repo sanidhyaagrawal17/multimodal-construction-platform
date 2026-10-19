@@ -341,11 +341,15 @@ with tab1:
             if uploaded_safety:
                 selected_img = Image.open(uploaded_safety)
 
-        # Trigger live analysis if key is active
-        live_safety_data = None
+        # Persistent state for live analysis
+        if "live_safety_data" not in st.session_state:
+            st.session_state["live_safety_data"] = None
+
         if selected_img and active_key and st.button("⚡ Run Live Gemini Vision Audit", type="primary"):
-            with st.spinner("Executing live multimodal Gemini 1.5 Flash inference..."):
-                live_safety_data = call_gemini_multimodal(selected_img, SAFETY_PROMPT)
+            with st.spinner(f"Executing live multimodal vision inference with {FREE_GEMINI_MODEL}..."):
+                st.session_state["live_safety_data"] = call_gemini_multimodal(selected_img, SAFETY_PROMPT)
+
+        live_safety_data = st.session_state.get("live_safety_data")
 
         if selected_img:
             if live_safety_data and "detections" in live_safety_data:
@@ -422,12 +426,16 @@ with tab2:
         
         run_crack_scan = st.button("Run Forensic Crack Scan", type="primary")
 
-    live_crack_data = None
-    if run_crack_scan:
-        if active_key and uploaded_crack:
-            with st.spinner("Analyzing concrete morphology with Gemini 1.5 Flash..."):
-                crack_img = Image.open(uploaded_crack)
-                live_crack_data = call_gemini_multimodal(crack_img, f"Component: {elem}, Grade: {concrete_grade}\n{CRACK_PROMPT}")
+        if "live_crack_data" not in st.session_state:
+            st.session_state["live_crack_data"] = None
+
+        if run_crack_scan:
+            if active_key and uploaded_crack:
+                with st.spinner(f"Analyzing concrete morphology with {FREE_GEMINI_MODEL}..."):
+                    crack_img = Image.open(uploaded_crack)
+                    st.session_state["live_crack_data"] = call_gemini_multimodal(crack_img, f"Component: {elem}, Grade: {concrete_grade}\n{CRACK_PROMPT}")
+
+        live_crack_data = st.session_state.get("live_crack_data")
 
     with cc2:
         morph = live_crack_data.get("crack_classification", "Shear Crack") if live_crack_data else "Shear Crack"
