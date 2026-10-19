@@ -265,10 +265,22 @@ def draw_dynamic_annotations(base_image, detections):
     else:
         img = base_image.copy()
 
-    draw = ImageDraw.Draw(img)
+    # Convert to RGBA for crisp translucent overlays
+    img = img.convert("RGBA")
+    overlay = Image.new("RGBA", img.size, (255, 255, 255, 0))
+    draw = ImageDraw.Draw(overlay)
     canvas_w, canvas_h = img.size
 
-    for d in detections:
+    # Sort detections: large boxes first, smaller PPE/worker boxes on top
+    def _box_area(det):
+        b = det.get("box_2d", [0, 0, 100, 100])
+        if isinstance(b, (list, tuple)) and len(b) == 4:
+            return abs(float(b[2]) - float(b[0])) * abs(float(b[3]) - float(b[1]))
+        return 1000
+
+    sorted_detections = sorted(detections, key=_box_area, reverse=True)
+
+    for d in sorted_detections:
         # Universal bounding box coordinate extractor
         bx, by, bw, bh = 0.0, 0.0, 0.1, 0.1
         if "box_2d" in d and isinstance(d["box_2d"], (list, tuple)) and len(d["box_2d"]) == 4:
@@ -317,30 +329,66 @@ def draw_dynamic_annotations(base_image, detections):
         severity = d.get("severity", "Moderate")
         label = d.get("label", "Detection")
 
-        if severity == "Critical" or dtype == "hazard":
-            outline_col = (239, 68, 68)
-            fill_col = (220, 38, 38)
-            txt_col = (255, 255, 255)
+        # Clean concise label tag
+        short_label = label.split("(")[0].strip()
+        if len(short_label) > 24:
+            short_label = short_label[:22] + "…"
+        tag = f"{short_label} · {severity.upper()}"
+
+        if severity in ["Critical", "High"] or dtype == "hazard":
+            outline_col = (239, 68, 68, 235)
+            pill_bg = (220, 38, 38, 220)
+            txt_col = (255, 255, 255, 255)
         elif severity == "OK" or dtype == "ppe":
-            outline_col = (16, 185, 129)
-            fill_col = (16, 185, 129)
-            txt_col = (255, 255, 255)
+            outline_col = (16, 185, 129, 235)
+            pill_bg = (16, 185, 129, 220)
+            txt_col = (255, 255, 255, 255)
         elif severity == "Unverified":
-            outline_col = (148, 163, 184)
-            fill_col = (51, 65, 85)
-            txt_col = (255, 255, 255)
+            outline_col = (148, 163, 184, 200)
+            pill_bg = (51, 65, 85, 220)
+            txt_col = (255, 255, 255, 255)
         else:
-            outline_col = (234, 179, 8)
-            fill_col = (234, 179, 8)
-            txt_col = (0, 0, 0)
+            outline_col = (234, 179, 8, 235)
+            pill_bg = (234, 179, 8, 220)
+            txt_col = (0, 0, 0, 255)
 
-        draw.rectangle([px1, py1, px2, py2], outline=outline_col, width=3)
-        tag = f"{label} · {severity}"
-        tag_width = min(canvas_w - px1, len(tag) * 9 + 12)
-        draw.rectangle([px1, max(0, py1 - 22), px1 + tag_width, py1], fill=fill_col)
-        draw.text((px1 + 6, max(0, py1 - 18)), tag, fill=txt_col)
+        # Draw sleek 2px bounding box
+        draw.rectangle([px1, py1, px2, py2], outline=outline_col, width=2)
 
-    return img
+        # Draw tactical corner accents
+        c_len = min(12, abs(px2 - px1) // 3, abs(py2 - py1) // 3)
+        if c_len > 3:
+            draw.line([(px1, py1), (px1 + c_len, py1)], fill=outline_col, width=3)
+            draw.line([(px1, py1), (px1, py1 + c_len)], fill=outline_col, width=3)
+            draw.line([(px2, py1), (px2 - c_len, py1)], fill=outline_col, width=3)
+            draw.line([(px2, py1), (px2, py2 - c_len)], fill=outline_col, width=3)
+            draw.line([(px1, py2), (px1 + c_len, py2)], fill=outline_col, width=3)
+            draw.line([(px1, py2), (px1, py2 - c_len)], fill=outline_col, width=3)
+            draw.line([(px2, py2), (px2 - c_len, py2)], fill=outline_col, width=3)
+            draw.line([(px2, py2), (px2, py2 - c_len)], fill=outline_col, width=3)
+
+        # Smart label placement: avoid cutting horizontally across center objects
+        tag_w = len(tag) * 7 + 10
+        tag_h = 18
+
+        if py1 < 25:
+            tag_y1 = py1 + 2
+            tag_y2 = py1 + tag_h + 2
+        elif dtype == "hazard" and (px2 - px1) > (canvas_w * 0.35):
+            # Wide hazard platform: anchor label at bottom corner so worker is never bisected
+            tag_y1 = py2 - tag_h - 2
+            tag_y2 = py2 - 2
+        else:
+            tag_y1 = py1 - tag_h - 2
+            tag_y2 = py1 - 2
+
+        tag_x1 = max(2, min(canvas_w - tag_w - 4, px1))
+        tag_x2 = tag_x1 + tag_w
+
+        draw.rectangle([tag_x1, tag_y1, tag_x2, tag_y2], fill=pill_bg)
+        draw.text((tag_x1 + 5, tag_y1 + 2), tag, fill=txt_col)
+
+    return Image.alpha_composite(img, overlay).convert("RGB")
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
