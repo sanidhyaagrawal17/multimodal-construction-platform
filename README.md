@@ -283,6 +283,29 @@ The platform is strictly calibrated against internationally recognized engineeri
 
 ---
 
+## ⚠️ Engineering Limitations & Human-in-the-Loop Principles
+
+The **Multimodal Construction Intelligence Platform** is an **AI-assisted decision-support system** engineered to assist field supervisors and safety auditors. It is not an automated replacement for licensed professional personnel.
+
+1. **AI-Assisted Screening & Competent Person Oversight**:
+   - All computer vision detections, bounding boxes, and safety telemetry serve as rapid initial screening.
+   - Per OSHA 29 CFR 1926 standards, elevated work platforms and scaffolding configurations must be formally inspected, tagged, and cleared by an OSHA-designated **Competent Person** prior to trade occupancy.
+2. **Truth-First Optical Thresholds & PPE Verification**:
+   - The platform adheres to strict truth-first principles: When headwear or PPE is obscured by viewing angle, distance (>50 ft), hoods, balaclavas, or low optical resolution, the system returns:  
+     `Possible non-compliance: head protection not clearly visible (OSHA 1926.100 Spot-Check Required)`
+   - The platform eliminates false assurance by refusing to grant unverified 100% passes when head protection cannot be confirmed.
+3. **Jurisdictional Standard Hierarchy**:
+   - In accordance with 29 CFR 1926.500(a)(2)(i), scaffolds are strictly excluded from general Subpart M fall protection and are governed under **Subpart L (§ 1926.451)**.
+   - Guardrails are cited specifically under **§ 1926.451(g)(4)(i)**, while personal fall arrest anchorages cite **§ 1926.451(g)(1)**.
+   - High-visibility apparel is evaluated for active equipment zones and is not falsely mandated as universal for elevated scaffold trades.
+4. **Structural Forensics & Physical NDT Requirements**:
+   - Concrete crack classifications (ACI 318-19 / ACI 224R) represent non-invasive visual surface triage.
+   - Subsurface void propagation, steel reinforcement yielding, or rebar corrosion must be verified via physical non-destructive testing (ultrasonic pulse velocity, ground-penetrating radar, or core compression tests) under the direction of a licensed Professional Engineer (PE / SE).
+5. **Deterministic Scoring & Reproducibility**:
+   - Risk indices and hazard scores are computed using fixed, deterministic civil engineering formulas with model temperature set to `0.0`, ensuring identical visual inputs generate reproducible audit metrics.
+
+---
+
 ## 👤 Author & Academic Attribution
 - **Student / Developer**: Sanidhya
 - **Module**: Generative AI with Google Cloud
