@@ -257,7 +257,7 @@ def draw_safety_annotations(base_image):
     return img
 
 def draw_dynamic_annotations(base_image, detections):
-    """Draw dynamically parsed bounding boxes from live Gemini vision inference."""
+    """Draw dynamically parsed bounding boxes from live Gemini vision inference with zero label collision."""
     target_w = 1280
     if base_image.width != target_w:
         target_h = int(base_image.height * (target_w / base_image.width))
@@ -271,14 +271,25 @@ def draw_dynamic_annotations(base_image, detections):
     draw = ImageDraw.Draw(overlay)
     canvas_w, canvas_h = img.size
 
-    # Sort detections: large boxes first, smaller PPE/worker boxes on top
-    def _box_area(det):
-        b = det.get("box_2d", [0, 0, 100, 100])
-        if isinstance(b, (list, tuple)) and len(b) == 4:
-            return abs(float(b[2]) - float(b[0])) * abs(float(b[3]) - float(b[1]))
-        return 1000
+    def overlaps(r1, r2):
+        # r = [x1, y1, x2, y2]
+        return not (r1[2] <= r2[0] or r1[0] >= r2[2] or r1[3] <= r2[1] or r1[1] >= r2[3])
 
-    sorted_detections = sorted(detections, key=_box_area, reverse=True)
+    occupied_rects = []
+
+    # Priority: primary workers first, then hazards, then PPE, then unverified/distant
+    def get_priority(d):
+        dtype = d.get("type", "worker")
+        sev = d.get("severity", "Moderate")
+        if dtype == "worker" and sev != "Unverified":
+            return 1
+        if dtype == "hazard":
+            return 2
+        if dtype == "ppe":
+            return 3
+        return 4
+
+    sorted_detections = sorted(detections, key=get_priority)
 
     for d in sorted_detections:
         # Universal bounding box coordinate extractor
@@ -330,26 +341,26 @@ def draw_dynamic_annotations(base_image, detections):
         label = d.get("label", "Detection")
 
         # Clean concise label tag
-        short_label = label.split("(")[0].strip()
-        if len(short_label) > 24:
-            short_label = short_label[:22] + "…"
+        short_label = label.split("/")[0].split("(")[0].strip()
+        if len(short_label) > 22:
+            short_label = short_label[:20] + "…"
         tag = f"{short_label} · {severity.upper()}"
 
         if severity in ["Critical", "High"] or dtype == "hazard":
             outline_col = (239, 68, 68, 235)
-            pill_bg = (220, 38, 38, 220)
+            pill_bg = (220, 38, 38, 230)
             txt_col = (255, 255, 255, 255)
         elif severity == "OK" or dtype == "ppe":
             outline_col = (16, 185, 129, 235)
-            pill_bg = (16, 185, 129, 220)
+            pill_bg = (16, 185, 129, 230)
             txt_col = (255, 255, 255, 255)
         elif severity == "Unverified":
             outline_col = (148, 163, 184, 200)
-            pill_bg = (51, 65, 85, 220)
+            pill_bg = (51, 65, 85, 230)
             txt_col = (255, 255, 255, 255)
         else:
             outline_col = (234, 179, 8, 235)
-            pill_bg = (234, 179, 8, 220)
+            pill_bg = (234, 179, 8, 230)
             txt_col = (0, 0, 0, 255)
 
         # Draw sleek 2px bounding box
@@ -367,26 +378,84 @@ def draw_dynamic_annotations(base_image, detections):
             draw.line([(px2, py2), (px2 - c_len, py2)], fill=outline_col, width=3)
             draw.line([(px2, py2), (px2, py2 - c_len)], fill=outline_col, width=3)
 
-        # Smart label placement: avoid cutting horizontally across center objects
-        tag_w = len(tag) * 7 + 10
+        tag_w = len(tag) * 7 + 12
         tag_h = 18
 
-        if py1 < 25:
-            tag_y1 = py1 + 2
-            tag_y2 = py1 + tag_h + 2
-        elif dtype == "hazard" and (px2 - px1) > (canvas_w * 0.35):
-            # Wide hazard platform: anchor label at bottom corner so worker is never bisected
-            tag_y1 = py2 - tag_h - 2
-            tag_y2 = py2 - 2
+        # Candidate label positions in priority order
+        candidates = []
+        label_lower = label.lower()
+
+        if dtype == "hazard" or any(k in label_lower for k in ["platform", "scaffold", "plank", "edge", "floor", "perimeter", "opening", "fall"]):
+            # Platforms / floor hazards: place label at bottom of box so worker is never bisected
+            candidates = [
+                [px1, py2 - tag_h - 2, px1 + tag_w, py2 - 2],           # Inside bottom-left
+                [px1, py2 + 2, px1 + tag_w, py2 + tag_h + 2],           # Outside bottom-left
+                [px2 - tag_w, py2 - tag_h - 2, px2, py2 - 2],           # Inside bottom-right
+                [px1, py1 - tag_h - 2, px1 + tag_w, py1 - 2],           # Fallback outside top-left
+            ]
+        elif dtype == "ppe" and any(k in label_lower for k in ["hat", "helmet", "head"]):
+            # Hard hat: place inside hat or top right
+            candidates = [
+                [px1, py1 + 2, px1 + tag_w, py1 + tag_h + 2],           # Inside top-left of hat
+                [px2 - tag_w, py1 + 2, px2, py1 + tag_h + 2],           # Inside top-right of hat
+                [px2 + 4, py1, px2 + tag_w + 4, py1 + tag_h],           # Outside right of hat
+                [px1, py2 + 2, px1 + tag_w, py2 + tag_h + 2],           # Outside bottom of hat
+            ]
+        elif dtype == "ppe" and any(k in label_lower for k in ["vest", "harness", "jacket"]):
+            # Hi-Vis Vest / Harness: inside vest box
+            candidates = [
+                [px1 + 4, py1 + 4, px1 + tag_w + 4, py1 + tag_h + 4],   # Inside top-left
+                [px1 + 4, py2 - tag_h - 4, px1 + tag_w + 4, py2 - 4],   # Inside bottom-left
+                [px2 - tag_w - 4, py1 + 4, px2 - 4, py1 + tag_h + 4],   # Inside top-right
+                [px2 + 4, py1, px2 + tag_w + 4, py1 + tag_h],           # Outside right
+            ]
+        elif dtype == "worker":
+            # Full worker: top-left outside
+            candidates = [
+                [px1, py1 - tag_h - 2, px1 + tag_w, py1 - 2],           # Outside top-left
+                [px1, py1 + 2, px1 + tag_w, py1 + tag_h + 2],           # Inside top-left
+                [px1, py2 + 2, px1 + tag_w, py2 + tag_h + 2],           # Outside bottom-left
+                [px2 - tag_w, py1 - tag_h - 2, px2, py1 - 2],           # Outside top-right
+            ]
         else:
-            tag_y1 = py1 - tag_h - 2
-            tag_y2 = py1 - 2
+            # Default fallback candidates
+            candidates = [
+                [px1, py1 - tag_h - 2, px1 + tag_w, py1 - 2],           # Outside top
+                [px1, py1 + 2, px1 + tag_w, py1 + tag_h + 2],           # Inside top
+                [px1, py2 - tag_h - 2, px1 + tag_w, py2 - 2],           # Inside bottom
+                [px1, py2 + 2, px1 + tag_w, py2 + tag_h + 2],           # Outside bottom
+            ]
 
-        tag_x1 = max(2, min(canvas_w - tag_w - 4, px1))
-        tag_x2 = tag_x1 + tag_w
+        # Pick the first candidate that doesn't overlap any previously occupied label
+        best_rect = None
+        for cand in candidates:
+            c_x1 = max(2, min(canvas_w - tag_w - 4, cand[0]))
+            c_y1 = max(2, min(canvas_h - tag_h - 4, cand[1]))
+            c_rect = [c_x1, c_y1, c_x1 + tag_w, c_y1 + tag_h]
+            
+            has_collision = False
+            for occ in occupied_rects:
+                if overlaps(c_rect, occ):
+                    has_collision = True
+                    break
+            if not has_collision:
+                best_rect = c_rect
+                break
 
-        draw.rectangle([tag_x1, tag_y1, tag_x2, tag_y2], fill=pill_bg)
-        draw.text((tag_x1 + 5, tag_y1 + 2), tag, fill=txt_col)
+        # If all candidate positions collide, shift downward until free
+        if not best_rect:
+            base = candidates[0]
+            c_x1 = max(2, min(canvas_w - tag_w - 4, base[0]))
+            c_y1 = max(2, min(canvas_h - tag_h - 4, base[1]))
+            while any(overlaps([c_x1, c_y1, c_x1 + tag_w, c_y1 + tag_h], occ) for occ in occupied_rects) and c_y1 < canvas_h - tag_h - 10:
+                c_y1 += tag_h + 4
+            best_rect = [c_x1, c_y1, c_x1 + tag_w, c_y1 + tag_h]
+
+        occupied_rects.append(best_rect)
+
+        # Draw label pill
+        draw.rectangle(best_rect, fill=pill_bg)
+        draw.text((best_rect[0] + 5, best_rect[1] + 2), tag, fill=txt_col)
 
     return Image.alpha_composite(img, overlay).convert("RGB")
 
