@@ -74,8 +74,8 @@ active_key = get_protected_key()
 st.sidebar.markdown("### 🏗️ Intelligence Core")
 
 model_options = [
-    "gemini-3.8-flash (Frontier Multimodal)",
-    "gemini-3.5-flash (Low-Latency Vision)",
+    "gemini-3.5-flash (Low-Latency Vision • Recommended)",
+    "gemini-3.8-flash (Frontier Deep Reasoning)",
     "gemini-3.5-flash-lite (High Throughput)"
 ]
 selected_model_choice = st.sidebar.selectbox("Active AI Model", model_options, index=0)
@@ -131,6 +131,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 ])
 
 def call_gemini_multimodal(image, prompt, system_instruction=None, json_mode=True):
+    """Execute live multimodal vision inference on full-resolution imagery with zero loss of defect fidelity."""
     if not active_key:
         return None
     cascade = [active_model_name] + [m for m in FREE_MODELS_CASCADE if m != active_model_name]
