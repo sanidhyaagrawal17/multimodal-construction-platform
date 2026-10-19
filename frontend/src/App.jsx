@@ -31,6 +31,7 @@ const TABS = [
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('safety');
+  const [uiState, setUiState] = useState('results'); // 'results' | 'empty' | 'loading' | 'error'
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [demoMode, setDemoMode] = useState(true);
   const [showDebug, setShowDebug] = useState(false);
@@ -51,7 +52,6 @@ export default function App() {
   };
 
   const handleLoadPreset = () => {
-    // Triggers demo data loading across current tab
     window.dispatchEvent(new CustomEvent('load_preset_sample'));
   };
 
@@ -60,7 +60,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b12] text-[#e2e8f0] flex flex-col font-sans select-none">
+    <div className="min-h-screen bg-[#070b12] text-[#e2e8f0] flex flex-col font-sans select-none pb-12">
       {/* Top Main Navbar */}
       <Navbar
         onLoadPreset={handleLoadPreset}
@@ -95,7 +95,10 @@ export default function App() {
       {/* Main Content View */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5">
         {activeTab === 'safety' && (
-          <SafetyInspector onUpdateReport={handleUpdateReport} />
+          <SafetyInspector 
+            uiState={uiState} 
+            onUpdateReport={handleUpdateReport} 
+          />
         )}
 
         {activeTab === 'crack' && (
@@ -122,6 +125,25 @@ export default function App() {
           <KnowledgeBot />
         )}
       </main>
+
+      {/* Bug 6 Fix: Floating Demo-State Switcher at Root Level */}
+      {activeTab === 'safety' && (
+        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 flex items-center p-1 rounded-full bg-[#0b101d]/90 backdrop-blur-md border border-[#223354] shadow-2xl space-x-1 text-xs">
+          {['results', 'empty', 'loading', 'error'].map((st) => (
+            <button
+              key={st}
+              onClick={() => setUiState(st)}
+              className={`px-3 py-1 rounded-full capitalize transition cursor-pointer font-medium text-[11px] ${
+                uiState === st 
+                  ? 'bg-[#eab308] text-black font-semibold shadow' 
+                  : 'text-zinc-400 hover:text-white hover:bg-[#152035]'
+              }`}
+            >
+              {st}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Bottom Footer Bar */}
       <footer className="border-t border-[#1c263c] bg-[#080d18] py-2.5 px-4 sm:px-6 mt-auto">

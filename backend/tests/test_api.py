@@ -36,10 +36,11 @@ def test_safety_analysis_json():
     resp = client.post("/api/v1/safety/analyze-json", json=payload)
     assert resp.status_code == 200
     data = resp.json()
-    assert 0 <= data["safety_score"] <= 100
-    assert len(data["ppe_compliance"]) > 0
-    assert len(data["hazards_identified"]) > 0
-    assert len(data["corrective_actions"]) > 0
+    assert 0 <= data["hazard_score"] <= 100
+    assert len(data["detections"]) > 0
+    assert len(data["infractions"]) > 0
+    assert len(data["actions"]) > 0
+    assert data["workers_detected"] >= 1
 
 def test_crack_analysis_json():
     payload = {

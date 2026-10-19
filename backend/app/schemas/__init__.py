@@ -1,4 +1,7 @@
-from .safety import SafetyAnalysisRequest, SafetyAnalysisResponse, PPEItem, HazardItem
+from .safety import (
+    SafetyAnalysisRequest, SafetyAnalysisResponse, BoundingBox, 
+    DetectionItem, InfractionItem, CorrectiveActionStep
+)
 from .crack import CrackAnalysisRequest, CrackAnalysisResponse
 from .planning import ProjectPlanRequest, ProjectPlanResponse, ConstructionPhase, RiskItem
 from .valuation import ValuationRequest, ValuationResponse, CostBreakdown, InvestmentMetrics

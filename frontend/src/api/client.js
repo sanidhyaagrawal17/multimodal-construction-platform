@@ -24,11 +24,15 @@ export async function fetchPresets() {
   return handleResponse(res);
 }
 
-export async function analyzeSafetyFile(file, projectName, siteZone) {
+export async function analyzeSafetyFile(file, projectName, siteZone, targets = {}) {
   const formData = new FormData();
   formData.append('file', file);
   if (projectName) formData.append('project_name', projectName);
   if (siteZone) formData.append('site_zone', siteZone);
+  if (targets.fallArrest !== undefined) formData.append('target_fall_arrest', targets.fallArrest);
+  if (targets.guardrails !== undefined) formData.append('target_guardrails', targets.guardrails);
+  if (targets.ppe !== undefined) formData.append('target_ppe', targets.ppe);
+  if (targets.plankDeflection !== undefined) formData.append('target_plank_deflection', targets.plankDeflection);
 
   const res = await fetch(`${BASE_URL}/safety/analyze`, {
     method: 'POST',

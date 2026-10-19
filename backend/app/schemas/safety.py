@@ -2,32 +2,52 @@ from typing import List, Optional, Literal
 from pydantic import BaseModel, Field
 from datetime import datetime
 
-class PPEItem(BaseModel):
-    item: str = Field(..., description="PPE item name (e.g. Hardhat, High-Vis Vest, Fall Protection Harness, Safety Boots, Eye Protection)")
-    status: Literal["Compliant", "Violation", "Partial", "Not Applicable"] = Field(..., description="Compliance status")
-    compliance_rate_pct: int = Field(..., ge=0, le=100, description="Estimated percentage compliance observed")
-    notes: str = Field(..., description="Field observations regarding this PPE category")
+class BoundingBox(BaseModel):
+    x: float = Field(..., ge=0.0, le=1.0, description="Normalized top-left X (0.0 to 1.0)")
+    y: float = Field(..., ge=0.0, le=1.0, description="Normalized top-left Y (0.0 to 1.0)")
+    w: float = Field(..., ge=0.0, le=1.0, description="Normalized box width (0.0 to 1.0)")
+    h: float = Field(..., ge=0.0, le=1.0, description="Normalized box height (0.0 to 1.0)")
 
-class HazardItem(BaseModel):
-    hazard_id: str = Field(..., description="Unique hazard identifier (e.g., HAZ-001)")
-    category: str = Field(..., description="Hazard type (e.g., Fall Hazard, Scaffolding Instability, Electrical, Tripping Debris)")
-    severity: Literal["Low", "Medium", "High", "Critical"] = Field(..., description="Risk severity tier")
-    location: str = Field(..., description="Location or zone within the image frame")
-    description: str = Field(..., description="Detailed description of the observed hazard")
-    osha_standard: str = Field(..., description="Referenced OSHA or National Building Code standard")
+class DetectionItem(BaseModel):
+    id: str
+    type: Literal["worker", "hazard", "ppe"]
+    label: str
+    severity: Literal["Critical", "High", "Moderate", "Low", "OK"]
+    confidence: float = Field(..., ge=0.0, le=1.0)
+    bbox: BoundingBox
+
+class InfractionItem(BaseModel):
+    id: str
+    severity: Literal["CRITICAL", "MODERATE", "LOW"]
+    osha_standard: str
+    location: str
+    description: str
+
+class CorrectiveActionStep(BaseModel):
+    step_number: str
+    category: str
+    title: str
+    description: str
 
 class SafetyAnalysisRequest(BaseModel):
-    project_name: Optional[str] = Field(default="Site Alpha", description="Construction project identifier")
-    site_zone: Optional[str] = Field(default="General Work Area", description="Zone or floor level")
-    image_base64: Optional[str] = Field(default=None, description="Base64 encoded image string if not uploaded via multipart")
+    project_name: Optional[str] = Field(default="Skyline Heights Tower B (Commercial Core)")
+    site_zone: Optional[str] = Field(default="Scaffolding Zone B - Level 4")
+    image_base64: Optional[str] = Field(default=None)
+    target_fall_arrest: bool = Field(default=True)
+    target_guardrails: bool = Field(default=True)
+    target_ppe: bool = Field(default=True)
+    target_plank_deflection: bool = Field(default=True)
 
 class SafetyAnalysisResponse(BaseModel):
     project_name: str
     site_zone: str
-    safety_score: int = Field(..., ge=0, le=100, description="Overall site safety score out of 100")
-    overall_risk_level: Literal["Low", "Medium", "High", "Critical"]
-    summary: str
-    ppe_compliance: List[PPEItem]
-    hazards_identified: List[HazardItem]
-    corrective_actions: List[str]
+    hazard_score: int = Field(84, ge=0, le=100)
+    fall_risk_pct: int = Field(88, ge=0, le=100)
+    scaffold_defect_pct: int = Field(42, ge=0, le=100)
+    workers_detected: int = Field(..., ge=0)
+    ppe_compliance_pct: int = Field(..., ge=0, le=100)
+    hazards_count: int = Field(..., ge=0)
+    detections: List[DetectionItem]
+    infractions: List[InfractionItem]
+    actions: List[CorrectiveActionStep]
     timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
