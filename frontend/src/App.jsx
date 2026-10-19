@@ -126,31 +126,32 @@ export default function App() {
         )}
       </main>
 
-      {/* Bug 6 Fix: Floating Demo-State Switcher at Root Level */}
-      {activeTab === 'safety' && (
-        <div className="fixed bottom-14 left-1/2 -translate-x-1/2 z-50 flex items-center p-1 rounded-full bg-[#0b101d]/90 backdrop-blur-md border border-[#223354] shadow-2xl space-x-1 text-xs">
-          {['results', 'empty', 'loading', 'error'].map((st) => (
-            <button
-              key={st}
-              onClick={() => setUiState(st)}
-              className={`px-3 py-1 rounded-full capitalize transition cursor-pointer font-medium text-[11px] ${
-                uiState === st 
-                  ? 'bg-[#eab308] text-black font-semibold shadow' 
-                  : 'text-zinc-400 hover:text-white hover:bg-[#152035]'
-              }`}
-            >
-              {st}
-            </button>
-          ))}
-        </div>
-      )}
-
       {/* Bottom Footer Bar */}
       <footer className="border-t border-[#1c263c] bg-[#080d18] py-2.5 px-4 sm:px-6 mt-auto">
         <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#8b9bb4] gap-2">
           <div>
             FastAPI • React • Gemini • OSHA 1926 & ACI 318 reference
           </div>
+
+          {/* Root-Level Demo-State Switcher inside Footer Area */}
+          {activeTab === 'safety' && (
+            <div className="flex items-center p-0.5 rounded-full bg-[#0b101d] border border-[#223354] space-x-1 text-xs">
+              {['results', 'empty', 'loading', 'error'].map((st) => (
+                <button
+                  key={st}
+                  onClick={() => setUiState(st)}
+                  className={`px-3 py-0.5 rounded-full capitalize transition cursor-pointer font-medium text-[11px] ${
+                    uiState === st 
+                      ? 'bg-[#eab308] text-black font-semibold shadow' 
+                      : 'text-zinc-400 hover:text-white hover:bg-[#152035]'
+                  }`}
+                >
+                  {st}
+                </button>
+              ))}
+            </div>
+          )}
+
           <div className="flex items-center space-x-3">
             {/* Demo Mode Toggle */}
             <div className="flex items-center space-x-1.5 cursor-pointer" onClick={() => setDemoMode(!demoMode)}>

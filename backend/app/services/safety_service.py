@@ -72,7 +72,7 @@ def generate_fallback_safety_analysis(
                 label="OSHA 1926.501(b)(1)",
                 severity="Critical",
                 confidence=0.98,
-                bbox=BoundingBox(x=0.25, y=0.15, w=0.14, h=0.72)
+                bbox=BoundingBox(x=0.375, y=0.115, w=0.215, h=0.845)
             )
         )
         infractions.append(
@@ -94,7 +94,7 @@ def generate_fallback_safety_analysis(
                 label="PPE",
                 severity="OK",
                 confidence=0.96,
-                bbox=BoundingBox(x=0.31, y=0.17, w=0.07, h=0.11)
+                bbox=BoundingBox(x=0.455, y=0.115, w=0.080, h=0.120)
             )
         )
 
@@ -107,7 +107,7 @@ def generate_fallback_safety_analysis(
                 label="OSHA 1926.451(g)(1)",
                 severity="Moderate",
                 confidence=0.91,
-                bbox=BoundingBox(x=0.42, y=0.27, w=0.22, h=0.25)
+                bbox=BoundingBox(x=0.580, y=0.500, w=0.240, h=0.280)
             )
         )
         infractions.append(
@@ -128,7 +128,7 @@ def generate_fallback_safety_analysis(
             label="Worker 2",
             severity="OK",
             confidence=0.94,
-            bbox=BoundingBox(x=0.86, y=0.18, w=0.09, h=0.28)
+            bbox=BoundingBox(x=0.855, y=0.215, w=0.053, h=0.195)
         )
     )
 
