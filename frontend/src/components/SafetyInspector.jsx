@@ -216,7 +216,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
     fall_risk_pct: 88,
     scaffold_defect_pct: 42,
     workers_detected: 2,
-    ppe_compliance_pct: 50,
+    ppe_compliance_pct: 100,
     hazards_count: 2,
     detections: DEFAULT_DETECTIONS,
     infractions: DEFAULT_INFRACTIONS,
@@ -253,7 +253,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
       fall_risk_pct: 88,
       scaffold_defect_pct: 42,
       workers_detected: 2,
-      ppe_compliance_pct: 50,
+      ppe_compliance_pct: 100,
       hazards_count: 2,
       detections: DEFAULT_DETECTIONS,
       infractions: DEFAULT_INFRACTIONS,
@@ -331,7 +331,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
         };
       case 'Unverified':
         return {
-          border: `border-2 border-slate-500/70 bg-slate-500/10 ${hoverGlow}`,
+          border: `border-2 border-dashed border-slate-400/80 bg-slate-500/10 ${hoverGlow}`,
           badge: 'bg-[#182234]/95 text-zinc-300 font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.8)] border border-[#2d3e5f] tracking-tight backdrop-blur-sm',
         };
       default:
@@ -659,13 +659,17 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
 
               <div 
                 className="flex items-center space-x-2 cursor-help"
-                title="1 of 2 assessable workers verified with tie-off (Worker 1 missing tie-off, Worker 2 distant/unverified)"
+                title="OSHA 1926.100 PPE Compliant: Hardhat & high-vis verified on assessable worker. Missing tie-off is tracked under Fall Protection (OSHA 1926.501). Worker 2 is distant/unverified."
               >
                 <span className="text-zinc-400">PPE Compliance:</span>
-                <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[11px] text-[#fde047]">
-                  {data.ppe_compliance_pct}% Warning
+                <span className={`px-2 py-0.5 rounded font-mono text-[11px] font-bold ${
+                  data.ppe_compliance_pct === 100
+                    ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                    : 'bg-amber-500/15 border border-amber-500/30 text-[#fde047]'
+                }`}>
+                  {data.ppe_compliance_pct}% {data.ppe_compliance_pct === 100 ? 'Pass' : 'Warning'}
                 </span>
-                <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline">(1 of 2 assessable workers)</span>
+                <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline">(1 of 1 assessable, 1 unverified)</span>
               </div>
 
               <div className="flex items-center space-x-2">
