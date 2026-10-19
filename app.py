@@ -415,7 +415,7 @@ OSHA_HAZARD_REGISTRY = {
         "subpart": "Subpart L (Scaffolds)",
         "title": "Scaffold Perimeter — Compliant Guardrails Not Visible (Scene-Level Finding)",
         "short_label": "Scene-Level Finding · Guardrails not visible",
-        "description": "Elevated scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Note: Scene-level determination; physical bounding box suppressed to eliminate negative-space spatial variance.",
+        "description": "Elevated scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Note: No bounding box shown: a missing guardrail can't be reliably outlined on a photo.",
         "severity": "Critical",
         "action": "Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i).",
         "is_scene_level": True
@@ -695,7 +695,7 @@ def build_unified_audit_findings(raw_data):
                     "title": "Scaffold Perimeter — Compliant Guardrails Not Visible (Scene-Level Finding)",
                     "osha_standard": "OSHA 1926.451(g)(4)(i)",
                     "subpart": "Subpart L (Scaffolds)",
-                    "observation": "Elevated scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Note: Scene-level determination; physical bounding box suppressed to eliminate negative-space spatial variance.",
+                    "observation": "Elevated scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Note: No bounding box shown: a missing guardrail can't be reliably outlined on a photo.",
                     "action": "Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i).",
                     "is_hazard": True,
                     "is_scene_level": True,
@@ -765,7 +765,30 @@ def build_unified_audit_findings(raw_data):
     deduped_persons = deduplicate_person_detections(raw_person_dets, iou_threshold=0.35)
     deduped_hazards_nonperson = deduplicate_hazard_detections(raw_hazard_dets, iou_threshold=0.40)
     
+    # STRICT WORKER COUNT: Exactly equal to the number of deduplicated person detections
+    total_workers = len(deduped_persons)
+
+    # Empty construction scene / unoccupied scaffold handler: zero active fall hazards
+    if scene_type == "construction_empty" or total_workers == 0:
+        return {
+            "scene_type": "construction_empty" if scene_type != "non_construction" else "non_construction",
+            "workers_detected": 0,
+            "ppe_status_text": "N/A",
+            "ppe_sub_text": "(No Workers in View)",
+            "ppe_color": "#94a3b8",
+            "hazard_score": 0,
+            "fall_risk_pct": 0,
+            "hazards": [],
+            "all_detections": [],
+            "actions": [
+                "01 [PRE-SHIFT INSPECTION]: Conduct daily pre-shift inspection by a designated Competent Person before permitting worker access per OSHA 1926.451(f)(3).",
+                "02 [ACCESS CONTROL]: Ensure scaffold inspection tag (Green/Yellow/Red) is affixed at access point and ladder access is secured against unauthorized entry.",
+                "03 [STRUCTURAL INTEGRITY]: Verify base plates, mudsills, structural ties, and full platform planking prior to authorizing trade work."
+            ]
+        }
+    
     deduped_hazards = []
+    raw_ppe_val = str(raw_data.get("ppe_status", "")).lower()
     
     # Process Persons: strictly assign Worker 1, Worker 2 (no made-up tier names)
     for p_idx, d in enumerate(deduped_persons, start=1):
@@ -773,7 +796,7 @@ def build_unified_audit_findings(raw_data):
         h_key = d.get("hazard_key", "")
         if not h_key or h_key not in OSHA_HAZARD_REGISTRY:
             lbl_lower = (str(d.get("label", "")) + " " + str(d.get("short_label", "")) + " " + str(d.get("description", "")) + " " + str(d.get("observation", ""))).lower()
-            if "compliant" in lbl_lower or "ground" in lbl_lower:
+            if "compliant" in lbl_lower or "ground" in lbl_lower or "grade" in lbl_lower or "safe" in lbl_lower or raw_ppe_val in ["compliant", "pass"]:
                 h_key = "worker_compliant"
             elif "steel" in lbl_lower or "ironworker" in lbl_lower:
                 h_key = "steel_erection_fall_hazard"
@@ -809,6 +832,11 @@ def build_unified_audit_findings(raw_data):
         }
         deduped_hazards.append(finding)
         
+    # Check if elevated workers exist before processing scaffold-level fall hazards
+    has_elevated_worker = any(h.get("hazard_key") in ["scaffold_no_fall_arrest", "steel_erection_fall_hazard", "leading_edge_fall_hazard"] for h in deduped_hazards)
+    if not has_elevated_worker:
+        deduped_hazards_nonperson = []
+
     # Deduplicate non-person scaffold hazards to retain primary structural hazard per platform elevation zone
     if any(d.get("hazard_key") == "scaffold_missing_guardrail" for d in deduped_hazards_nonperson):
         deduped_hazards_nonperson = [d for d in deduped_hazards_nonperson if d.get("hazard_key") == "scaffold_missing_guardrail"][:1]
@@ -852,9 +880,6 @@ def build_unified_audit_findings(raw_data):
         }
         deduped_hazards.append(finding)
 
-    # STRICT WORKER COUNT: Exactly equal to the number of deduplicated person detections
-    total_workers = len(deduped_persons)
-    
     # Filter only actual hazards for infractions
     actual_hazards = [h for h in deduped_hazards if h["is_hazard"]]
 
@@ -864,7 +889,7 @@ def build_unified_audit_findings(raw_data):
         ppe_str = "N/A"
         ppe_sub = "(No Workers in View)"
         ppe_col = "#94a3b8"
-    elif raw_ppe == "compliant" and not any(h.get("hazard_key") in ["ppe_unverified", "ppe_no_hardhat", "scaffold_no_fall_arrest"] for h in actual_hazards):
+    elif (raw_ppe in ["compliant", "pass", "ok"] or any(h.get("hazard_key") == "worker_compliant" for h in deduped_hazards)) and not any(h.get("hazard_key") in ["ppe_unverified", "ppe_no_hardhat", "scaffold_no_fall_arrest"] for h in actual_hazards):
         ppe_str = "100% Pass"
         ppe_sub = "(Strict OSHA 1926.100 Head Protection)"
         ppe_col = "#34d399"
@@ -1202,6 +1227,8 @@ TRUTH-FIRST AND OVERCLAIM PRINCIPLES:
 1. When headwear or high-vis is covered by hood, balaclava, dark clothing, or low resolution, NEVER claim 100% compliance. Return ppe_status="not_verifiable" or "non_compliant".
 2. NEVER say "worker lacks fall arrest system". ALWAYS say "without visible personal fall arrest connection" or "no visible tie-off" (a harness could be hidden by angle).
 3. If image is non-construction (office, bedroom, food, park), set scene_type="non_construction", hazard_score=0, fall_risk_pct=0, and detections=[].
+4. If image shows an empty scaffold or unoccupied structure with zero workers present, set scene_type="construction_empty", workers_detected=0, ppe_status="no_workers", hazard_score=0, fall_risk_pct=0, and detections=[]. Do not invent active fall hazards when no employees are present.
+5. If image shows a ground-level worker in full protective gear (hardhat, high-vis) on stable ground level with no elevation or fall exposure, set scene_type="construction_active", ppe_status="compliant", hazard_score=12, fall_risk_pct=10, and assign hazard_key="worker_compliant" with severity="OK".
 """
 
 SAFETY_PROMPT = """
@@ -1351,6 +1378,21 @@ with tab1:
                 else:
                     annotated = draw_dynamic_annotations(selected_img, audit.get("all_detections", []))
                     st.image(annotated, caption="Live Computer Vision Overlay • OSHA 1926 Spatial Telemetry", use_container_width=True)
+                
+                # On-Screen Scene-Level Finding Banner
+                scene_findings = [h for h in audit.get("hazards", []) if h.get("is_scene_level") or not h.get("box_2d")]
+                if scene_findings:
+                    for sf in scene_findings:
+                        st.markdown(f"""
+                        <div style="background: rgba(239, 68, 68, 0.08); border: 1px dashed rgba(239, 68, 68, 0.4); border-radius: 6px; padding: 8px 14px; margin: 6px 0 8px 0; display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <strong style="color: #f87171; font-size: 12px;">🚨 Scene-Level Finding:</strong> 
+                                <span style="color: #f1f5f9; font-size: 12px; margin-left: 6px; font-weight: 500;">{sf.get('short_label', 'Guardrails not visible')}</span> 
+                                <span style="color: #38bdf8; font-family: monospace; font-size: 11px; margin-left: 6px; font-weight: bold;">[{sf.get('osha_standard', '')}]</span>
+                            </div>
+                            <span style="color: #94a3b8; font-size: 11px; font-style: italic;">No box drawn on photo</span>
+                        </div>
+                        """, unsafe_allow_html=True)
                 
                 # Stats Strip
                 w_count = audit.get("workers_detected", 0)
