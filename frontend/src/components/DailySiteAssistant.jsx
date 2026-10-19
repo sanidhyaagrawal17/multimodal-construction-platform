@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ClipboardList, AlertCircle, CheckCircle2, Clock, Sparkles, RefreshCw, Users, ShieldAlert } from 'lucide-react';
 import { processDailyLog } from '../api/client';
 
@@ -12,6 +12,10 @@ export default function DailySiteAssistant({ onUpdateReport }) {
   );
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    handleProcess();
+  }, []);
 
   const handleProcess = async () => {
     setLoading(true);

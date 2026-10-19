@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { CloudRain, Wind, Thermometer, Sun, ShieldAlert, Sparkles, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { getWeatherAdvisory } from '../api/client';
 
@@ -10,6 +10,10 @@ export default function WeatherAdvisor({ onUpdateReport }) {
   const [uvIndex, setUvIndex] = useState(9);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    handleRunAdvisory();
+  }, []);
 
   const applyScenario = (t, h, r, w, uv) => {
     setTempC(t);

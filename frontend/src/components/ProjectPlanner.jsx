@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Calendar, Layers, ShieldAlert, Sparkles, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { generateProjectPlan } from '../api/client';
 
@@ -13,6 +13,10 @@ export default function ProjectPlanner({ onUpdateReport }) {
   const [floors, setFloors] = useState(4);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    handleGenerate();
+  }, []);
 
   const handleGenerate = async () => {
     setLoading(true);

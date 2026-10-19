@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Building2, DollarSign, TrendingUp, Sparkles, RefreshCw, PieChart, Check } from 'lucide-react';
 import { calculateValuation } from '../api/client';
 
@@ -25,6 +25,10 @@ export default function RealEstateValuer({ onUpdateReport }) {
   ]);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+
+  useEffect(() => {
+    handleCalculate();
+  }, []);
 
   const toggleAmenity = (item) => {
     if (selectedAmenities.includes(item)) {
