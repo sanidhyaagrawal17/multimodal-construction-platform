@@ -120,3 +120,129 @@ def test_non_construction_scene():
     assert audit["fall_risk_pct"] == 0
     assert "Unable to assess" in audit["ppe_status_text"]
     assert "Unable to assess" in audit["actions"][0]
+
+def test_bbox_normalization_inverted_and_scale_invariants():
+    """Verify that bounding box normalization safely handles inverted coordinates, 1000-scale pixels, dict schemas, and degenerate inputs."""
+    # Inverted coordinates: ymax before ymin, xmax before xmin
+    inverted_box = [600, 372, 350, 248]
+    y1, x1, y2, x2 = root_app.normalize_bbox(inverted_box)
+    assert y1 < y2 and x1 < x2, "Normalized coordinates must satisfy y1 < y2 and x1 < x2"
+    assert (y1, x1, y2, x2) == (0.35, 0.248, 0.60, 0.372)
+
+    # Dictionary schema with x, y, width, height in 1000-scale
+    dict_box = {"x": 100, "y": 200, "w": 300, "h": 400}
+    dy1, dx1, dy2, dx2 = root_app.normalize_bbox(dict_box)
+    assert dy1 == pytest.approx(0.2) and dx1 == pytest.approx(0.1)
+    assert dy2 == pytest.approx(0.6) and dx2 == pytest.approx(0.4)
+
+    # Degenerate / invalid inputs return safe fallback tuple without raising exceptions
+    assert len(root_app.normalize_bbox(None)) == 4
+    assert len(root_app.normalize_bbox([])) == 4
+    assert len(root_app.normalize_bbox("invalid_string")) == 4
+
+def test_dense_cluster_person_deduplication():
+    """Verify that Non-Maximum Suppression collapses a dense cluster of 10 overlapping candidate proposals to exactly 1 distinct worker."""
+    dense_proposals = [
+        {"category": "person", "box_2d": [350 + i, 250 + i, 600 + i, 370 + i], "confidence": 0.90 - (i * 0.01)}
+        for i in range(10)
+    ]
+    deduped = root_app.deduplicate_person_detections(dense_proposals, iou_threshold=0.35)
+    assert len(deduped) == 1, f"Dense cluster of 10 overlapping boxes must collapse to 1 worker, got {len(deduped)}"
+
+def test_hallucinated_hazard_key_graceful_fallback():
+    """Verify that hallucinated or unrecognized hazard keys from the multimodal model map safely to canonical OSHA taxonomy without raising KeyError."""
+    raw_hallucinated = {
+        "scene_type": "construction_active",
+        "detections": [
+            {
+                "category": "person",
+                "box_2d": [350, 248, 600, 372],
+                "hazard_key": "hallucinated_worker_fall_key",
+                "observation": "worker at height without lanyard"
+            },
+            {
+                "category": "hazard",
+                "box_2d": [100, 100, 200, 200],
+                "hazard_key": "hallucinated_edge_key",
+                "short_label": "perimeter guardrail missing"
+            }
+        ]
+    }
+    audit = root_app.build_unified_audit_findings(raw_hallucinated)
+    assert len(audit["hazards"]) == 2
+    # Verify fallback mapped to valid registry keys
+    assert audit["hazards"][0]["hazard_key"] in root_app.OSHA_HAZARD_REGISTRY
+    assert audit["hazards"][1]["hazard_key"] in root_app.OSHA_HAZARD_REGISTRY
+    assert audit["hazards"][0]["osha_standard"] == "OSHA 1926.451(g)(1)"
+    assert audit["hazards"][1]["osha_standard"] == "OSHA 1926.451(g)(4)(i)"
+
+def test_corrupted_and_none_input_resilience():
+    """Verify that None, empty dicts, or corrupted model strings gracefully trigger the calibrated fallback audit with zero exceptions."""
+    for corrupted in [None, {}, "corrupted_json_string", []]:
+        audit = root_app.build_unified_audit_findings(corrupted)
+        assert isinstance(audit, dict)
+        assert audit["hazard_score"] == 88
+        assert audit["fall_risk_pct"] == 90
+        assert audit["workers_detected"] == 2
+        assert len(audit["hazards"]) == 3
+        assert len(audit["actions"]) == 3
+
+def test_subpart_l_exclusion_from_subpart_m():
+    """Verify jurisdictional hierarchy: scaffold fall protection is governed under Subpart L (§ 1926.451), excluded from Subpart M per § 1926.500(a)(2)(i)."""
+    reg = root_app.OSHA_HAZARD_REGISTRY
+    assert reg["scaffold_no_fall_arrest"]["standard"] == "OSHA 1926.451(g)(1)"
+    assert "Subpart L" in reg["scaffold_no_fall_arrest"]["subpart"]
+    assert reg["scaffold_missing_guardrail"]["standard"] == "OSHA 1926.451(g)(4)(i)"
+    # High-vis head protection is under Subpart E
+    assert reg["ppe_no_hardhat"]["standard"] == "OSHA 1926.100(a)"
+    assert "Subpart E" in reg["ppe_no_hardhat"]["subpart"]
+
+def test_deterministic_scoring_monotonicity():
+    """Verify deterministic scoring monotonicity: higher infraction counts yield equal or higher hazard scores."""
+    score_empty_hz, score_empty_fall = root_app.calculate_deterministic_scores("construction_empty", 0, [])
+    assert (score_empty_hz, score_empty_fall) == (0, 0)
+
+    score_compliant_hz, score_compliant_fall = root_app.calculate_deterministic_scores("construction_active", 1, [])
+    assert (score_compliant_hz, score_compliant_fall) == (12, 10)
+
+    one_crit_worker = [{"category": "person", "severity": "Critical"}]
+    one_crit_scaffold = [{"category": "hazard", "severity": "Critical"}]
+    score_1w_1s_hz, score_1w_1s_fall = root_app.calculate_deterministic_scores("construction_active", 1, one_crit_worker + one_crit_scaffold)
+    assert (score_1w_1s_hz, score_1w_1s_fall) == (84, 85)
+
+    two_crit_workers = [{"category": "person", "severity": "Critical"}, {"category": "person", "severity": "Critical"}]
+    score_2w_1s_hz, score_2w_1s_fall = root_app.calculate_deterministic_scores("construction_active", 2, two_crit_workers + one_crit_scaffold)
+    assert (score_2w_1s_hz, score_2w_1s_fall) == (88, 90)
+
+    # Monotonicity checks
+    assert score_empty_hz < score_compliant_hz < score_1w_1s_hz <= score_2w_1s_hz
+    assert score_empty_fall < score_compliant_fall < score_1w_1s_fall <= score_2w_1s_fall
+
+def test_actions_protocol_generation():
+    """Verify that findings generate the mandatory 3-step prioritized corrective action protocol."""
+    raw_active = {
+        "scene_type": "construction_active",
+        "detections": [
+            {"category": "person", "box_2d": [350, 248, 600, 372], "hazard_key": "scaffold_no_fall_arrest"}
+        ]
+    }
+    audit = root_app.build_unified_audit_findings(raw_active)
+    actions = audit["actions"]
+    assert len(actions) == 3
+    assert actions[0].startswith("01 [IMMEDIATE ACTION]")
+    assert actions[1].startswith("02 [ENGINEERING FIX]")
+    assert actions[2].startswith("03 [DOCUMENTATION & RE-INSPECTION]")
+
+def test_unattended_scaffold_hazard_suppression():
+    """Verify that if no workers are present, scaffold structural hazards do not trigger active fall violation penalization."""
+    raw_unattended_scaffold = {
+        "scene_type": "construction_active",
+        "detections": [
+            {"category": "hazard", "box_2d": [100, 100, 200, 200], "hazard_key": "scaffold_missing_guardrail"}
+        ]
+    }
+    audit = root_app.build_unified_audit_findings(raw_unattended_scaffold)
+    # Since total_workers is 0, no active workers are exposed to the unguarded edge
+    assert audit["workers_detected"] == 0
+    assert len(audit["hazards"]) == 0
+    assert audit["hazard_score"] == 0

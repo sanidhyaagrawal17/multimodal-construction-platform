@@ -6,7 +6,7 @@
 [![React](https://img.shields.io/badge/React-18.2+-61DAFB.svg)](https://react.dev/)
 [![Google Gemini](https://img.shields.io/badge/Google_Gemini-Free_Tier_(Flash)-4285F4.svg)](https://ai.google.dev/)
 [![Standards](https://img.shields.io/badge/Compliance-OSHA_1926_|_ACI_318-orange.svg)](https://www.osha.gov/laws-regs/regulations/standardnumber/1926)
-[![Tests](https://img.shields.io/badge/Tests-15_Passed_100%25-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-23_Passed_100%25-brightgreen.svg)]()
 [![CI Test Suite](https://github.com/sanidhyaagrawal17/multimodal-construction-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/sanidhyaagrawal17/multimodal-construction-platform/actions/workflows/ci.yml)
 
 > A full-stack decision-support platform designed to assist construction field supervisors, civil engineers, and safety auditors across planning, execution, and monitoring. Fusing multimodal Artificial Intelligence (Google Gemini free-tier vision endpoints) with deterministic civil engineering heuristics, the platform analyzes site photos, structural imagery, and project parameters to deliver actionable, code-grounded insights.
@@ -77,9 +77,9 @@ multimodal-construction-platform/
 │   │   ├── utils/           # In-memory image processing & synthetic scenario generators
 │   │   ├── config.py        # Centralized settings & environment bindings
 │   │   └── main.py          # FastAPI application entrypoint with CORS & error handlers
-│   ├── tests/               # Pytest automated test suite (15 unit & integration tests)
+│   ├── tests/               # Pytest automated test suite (23 unit & integration tests)
 │   │   ├── test_api.py               # REST API route integration tests (9 tests)
-│   │   ├── test_vision_heuristics.py # IoU deduplication, OSHA registry, and edge-case unit tests (6 tests)
+│   │   ├── test_vision_heuristics.py # IoU deduplication, OSHA registry, and edge-case unit tests (14 tests)
 │   │   └── verify_live_endpoints.py  # Manual HTTP endpoint testing utility
 │   ├── requirements.txt     # Python backend dependencies
 │   └── Dockerfile           # Backend container specification
@@ -122,7 +122,7 @@ multimodal-construction-platform/
 | **Epic 5** | Activity 5.2: Daily Site Assistant | `backend/app/services/daily_log_service.py`, `app.py` Tab 4 | Automated Punch List |
 | **Epic 5** | Activity 5.3: Weather Risk Advisory | `backend/app/services/weather_service.py`, `app.py` Tab 4 | Meteorological Trade Matrix |
 | **Epic 6** | Activity 6.1: Interface & End-to-End | Streamlit (`app.py`) + React 18 / Vite Frontend | Responsive & Deployed |
-| **Epic 6** | Activity 6.2: System Validation | `backend/tests/` (15 automated tests) | **15 / 15 Passed (100%)** |
+| **Epic 6** | Activity 6.2: System Validation | `backend/tests/` (23 automated tests) | **23 / 23 Passed (100%)** |
 | **Epic 6** | Activity 6.3: Deployment Readiness | Streamlit Cloud + Docker Compose | **Live Online** |
 
 ---
@@ -210,7 +210,7 @@ The platform includes preloaded samples and clipboard pasting for quick evaluati
 
 ## 🧪 Automated Verification & Test Suite
 
-The platform includes **15 automated unit and integration tests** executed via pytest:
+The platform includes **23 automated unit and integration tests** executed via pytest:
 
 ```bash
 cd backend
@@ -220,23 +220,31 @@ pytest tests/ -v
 
 ### Test Suite Execution Output:
 ```text
-backend/tests/test_api.py::test_root_and_health PASSED                   [  6%]
-backend/tests/test_api.py::test_samples_endpoint PASSED                  [ 13%]
-backend/tests/test_api.py::test_safety_analysis_json PASSED              [ 20%]
-backend/tests/test_api.py::test_crack_analysis_json PASSED               [ 26%]
-backend/tests/test_api.py::test_planning_generation PASSED               [ 33%]
-backend/tests/test_api.py::test_valuation_calculation PASSED             [ 40%]
-backend/tests/test_api.py::test_daily_log_processing PASSED              [ 46%]
-backend/tests/test_api.py::test_weather_advisory PASSED                  [ 53%]
-backend/tests/test_api.py::test_chat_assistant PASSED                    [ 60%]
-backend/tests/test_vision_heuristics.py::test_iou_calculation_and_person_deduplication PASSED [ 66%]
-backend/tests/test_vision_heuristics.py::test_canonical_osha_hazard_registry PASSED [ 73%]
-backend/tests/test_vision_heuristics.py::test_scene_level_finding_suppression PASSED [ 80%]
-backend/tests/test_vision_heuristics.py::test_empty_scaffold_zero_hazards PASSED [ 86%]
-backend/tests/test_vision_heuristics.py::test_compliant_ground_worker PASSED [ 93%]
-backend/tests/test_vision_heuristics.py::test_non_construction_scene PASSED [100%]
+backend/tests/test_api.py::test_root_and_health PASSED                   [  4%]
+backend/tests/test_api.py::test_samples_endpoint PASSED                  [  8%]
+backend/tests/test_api.py::test_safety_analysis_json PASSED              [ 13%]
+backend/tests/test_api.py::test_crack_analysis_json PASSED               [ 17%]
+backend/tests/test_api.py::test_planning_generation PASSED               [ 21%]
+backend/tests/test_api.py::test_valuation_calculation PASSED             [ 26%]
+backend/tests/test_api.py::test_daily_log_processing PASSED              [ 30%]
+backend/tests/test_api.py::test_weather_advisory PASSED                  [ 34%]
+backend/tests/test_api.py::test_chat_assistant PASSED                    [ 39%]
+backend/tests/test_vision_heuristics.py::test_iou_calculation_and_person_deduplication PASSED [ 43%]
+backend/tests/test_vision_heuristics.py::test_canonical_osha_hazard_registry PASSED [ 47%]
+backend/tests/test_vision_heuristics.py::test_scene_level_finding_suppression PASSED [ 52%]
+backend/tests/test_vision_heuristics.py::test_empty_scaffold_zero_hazards PASSED [ 56%]
+backend/tests/test_vision_heuristics.py::test_compliant_ground_worker PASSED [ 60%]
+backend/tests/test_vision_heuristics.py::test_non_construction_scene PASSED [ 65%]
+backend/tests/test_vision_heuristics.py::test_bbox_normalization_inverted_and_scale_invariants PASSED [ 69%]
+backend/tests/test_vision_heuristics.py::test_dense_cluster_person_deduplication PASSED [ 73%]
+backend/tests/test_vision_heuristics.py::test_hallucinated_hazard_key_graceful_fallback PASSED [ 78%]
+backend/tests/test_vision_heuristics.py::test_corrupted_and_none_input_resilience PASSED [ 82%]
+backend/tests/test_vision_heuristics.py::test_subpart_l_exclusion_from_subpart_m PASSED [ 86%]
+backend/tests/test_vision_heuristics.py::test_deterministic_scoring_monotonicity PASSED [ 91%]
+backend/tests/test_vision_heuristics.py::test_actions_protocol_generation PASSED [ 95%]
+backend/tests/test_vision_heuristics.py::test_unattended_scaffold_hazard_suppression PASSED [100%]
 
-======================= 15 passed in 6.59s ========================
+======================= 23 passed in 6.86s ========================
 ```
 
 ---
