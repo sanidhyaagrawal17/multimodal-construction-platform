@@ -22,12 +22,15 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
 
-    /* Exclude Streamlit Material icons from user-select overrides */
-    *:not([data-testid="stExpanderToggleIcon"]):not([class*="material-symbols"]):not([class*="material-icons"]) {
-        -webkit-user-select: text;
-        -moz-user-select: text;
-        -ms-user-select: text;
-        user-select: text;
+    /* Enforce universal text selection and copy across all elements */
+    body, html, .stApp, .main, p, span, div, strong, em, b, i, h1, h2, h3, h4, h5, h6, 
+    code, pre, blockquote, table, td, th, tr, li, ol, ul,
+    .tactical-card, [data-testid="stMarkdownContainer"], [data-testid="stMarkdownContainer"] *,
+    [data-testid="stMetricValue"], [data-testid="stMetricLabel"], [data-testid="stMetricDelta"] {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
     }
     
     /* Universal suppression of literal ligature text for st.expander in all Streamlit versions */
@@ -133,6 +136,123 @@ def get_clipboard_image(key="paste_btn", label="📋 Paste Image from Clipboard 
     except Exception:
         pass
     return None
+
+def render_copy_output_widget(content_text, download_filename="construction_audit_report.md", label="📋 Copy Full Output to Clipboard", show_code_block=True):
+    """
+    Renders an immediate 1-click clipboard copy button, a direct download button,
+    and a visible code box with Streamlit's native copy button.
+    """
+    col_copy, col_dl = st.columns([6, 4])
+    
+    escaped_json = json.dumps(content_text)
+    
+    with col_copy:
+        components.html(f"""
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; align-items: center; height: 100%; margin: 0; padding: 0;">
+            <button id="copyBtn" onclick="executeCopy()" style="
+                background: linear-gradient(135deg, #0284c7 0%, #0369a1 100%);
+                color: #ffffff;
+                border: 1px solid #38bdf8;
+                border-radius: 6px;
+                padding: 7px 14px;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+                transition: all 0.2s ease;
+                outline: none;
+                user-select: none;
+                width: 100%;
+                justify-content: center;
+                height: 38px;
+            ">
+                <span id="copyIcon">📋</span>
+                <span id="copyLabel">{label}</span>
+            </button>
+        </div>
+        <script>
+        const payload = {escaped_json};
+        
+        function executeCopy() {{
+            const btn = document.getElementById('copyBtn');
+            const icon = document.getElementById('copyIcon');
+            const label = document.getElementById('copyLabel');
+            
+            function markSuccess() {{
+                if (btn) {{
+                    btn.style.background = 'linear-gradient(135deg, #059669 0%, #047857 100%)';
+                    btn.style.borderColor = '#34d399';
+                    btn.style.boxShadow = '0 0 10px rgba(16, 185, 129, 0.4)';
+                }}
+                if (icon) icon.textContent = '✅';
+                if (label) label.textContent = 'Copied to Clipboard!';
+                
+                setTimeout(() => {{
+                    if (btn) {{
+                        btn.style.background = 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)';
+                        btn.style.borderColor = '#38bdf8';
+                        btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.3)';
+                    }}
+                    if (icon) icon.textContent = '📋';
+                    if (label) label.textContent = '{label}';
+                }}, 2500);
+            }}
+
+            if (navigator.clipboard && navigator.clipboard.writeText) {{
+                navigator.clipboard.writeText(payload)
+                    .then(markSuccess)
+                    .catch(() => tryParentOrFallback());
+            }} else {{
+                tryParentOrFallback();
+            }}
+
+            function tryParentOrFallback() {{
+                if (window.parent && window.parent.navigator && window.parent.navigator.clipboard) {{
+                    window.parent.navigator.clipboard.writeText(payload)
+                        .then(markSuccess)
+                        .catch(() => execCommandFallback());
+                }} else {{
+                    execCommandFallback();
+                }}
+            }}
+
+            function execCommandFallback() {{
+                const ta = document.createElement('textarea');
+                ta.value = payload;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                ta.style.top = '-9999px';
+                ta.style.opacity = '0';
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                try {{
+                    const ok = document.execCommand('copy');
+                    if (ok) markSuccess();
+                }} catch (e) {{
+                    console.error('Copy fallback error', e);
+                }}
+                document.body.removeChild(ta);
+            }}
+        }}
+        </script>
+        """, height=44)
+
+    with col_dl:
+        st.download_button(
+            label="📥 Download .MD",
+            data=content_text,
+            file_name=download_filename,
+            mime="text/markdown",
+            use_container_width=True
+        )
+
+    if show_code_block:
+        st.code(content_text, language="markdown")
+
 
 # --- PROTECTED API VAULT & FREE MODEL CONFIG ---
 # --- PROTECTED API VAULT & ZERO-BILLING FREE MODEL CONFIG ---
@@ -1321,19 +1441,22 @@ with tab1:
             else:
                 st.caption("Awaiting live vision inspection...")
 
-        # --- ONE-CLICK COPY REPORT TO CLIPBOARD ---
+        st.markdown("---")
+        st.markdown("#### 📋 Copy & Export Inspection Output")
+        st.caption("Click the 1-click button below to copy the full audit dossier to your clipboard, or click the copy icon in the upper-right corner of the code box:")
+        
         rep_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         w_cnt = audit.get("workers_detected", 0) if audit else 0
         p_txt = f"{audit.get('ppe_status_text', 'N/A')} {audit.get('ppe_sub_text', '')}" if audit else "N/A"
         
         report_md = f"""# OSHA 1926 Safety & Fall Protection Inspection Report
 - Date/Timestamp: {rep_date}
-- Governing Engineering Standards: OSHA 1926.451 (Scaffolds), OSHA 1926.760 (Steel Erection), OSHA 1926.501 (Fall Protection), OSHA 1926.100 (PPE)
-- Total Hazard Risk Score: {hazard_val} / 100
-- Fall Risk Index: {fall_val}%
 - Workers Detected: {w_cnt} Active
 - PPE Compliance: {p_txt}
-- Identified Hazards: {len(hazards_list)} Confirmed
+- Hazards Found: {len(hazards_list)} Confirmed
+- Total Hazard Risk Score: {hazard_val} / 100
+- Fall Risk Index: {fall_val}%
+- Governing Engineering Standards: OSHA 1926.451 (Scaffolds), OSHA 1926.100 (PPE)
 
 ## Detected Visual Infractions & Telemetry
 """
@@ -1356,11 +1479,11 @@ with tab1:
 
         report_md += "\n---\n⚠️ AI-assisted screening; verify with a competent person.\n"
 
-        with st.expander("📋 One-Click Copy: Formatted OSHA Report (Markdown)", expanded=False):
-            st.caption("Click the copy icon in the upper-right corner of the code block to copy the full audit report to your clipboard:")
-            st.code(report_md, language="markdown")
-
-        st.caption("⚠️ *AI-assisted screening; verify with a competent person.*")
+        render_copy_output_widget(
+            report_md,
+            download_filename=f"osha_safety_inspection_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+            label="📋 Copy Full Audit Output to Clipboard"
+        )
 
 # ==========================================
 # TAB 2: CRACK DIAGNOSTICS & ACI 318
@@ -1468,9 +1591,14 @@ with tab2:
 3. Epoxy Pressure Injection: Conforming to ASTM C881 Type I/IV.
 4. CFRP Strengthening: High-modulus Carbon Fiber Reinforced Polymer U-wraps around shear span.
 """
-        with st.expander("📋 One-Click Copy: Forensic ACI 318 Report (Markdown)", expanded=False):
-            st.caption("Click the copy icon in the upper-right corner to copy the complete forensic report to your clipboard:")
-            st.code(crack_report_md, language="markdown")
+        st.markdown("---")
+        st.markdown("#### 📋 Copy & Export Forensic Diagnosis")
+        st.caption("Click the 1-click button below to copy the complete forensic report to your clipboard, or click the copy icon in the upper-right corner of the code box:")
+        render_copy_output_widget(
+            crack_report_md,
+            download_filename=f"aci_318_crack_report_{datetime.datetime.now().strftime('%Y%m%d_%H%M%S')}.md",
+            label="📋 Copy Forensic ACI 318 Report to Clipboard"
+        )
 
 # ==========================================
 # TAB 3: CPM PLANNING & ASSET VALUATION
@@ -1554,22 +1682,27 @@ with tab4:
                 ai_notes = call_gemini_text(prompt, system_instruction="You are an expert construction site superintendent AI.")
                 if ai_notes:
                     st.markdown(ai_notes)
+                    st.markdown("---")
+                    render_copy_output_widget(ai_notes, download_filename="daily_field_intelligence.md", label="📋 Copy Field Notes Analysis", show_code_block=False)
         else:
-            st.markdown("""
-            **Automated Progress Highlights:**
-            - ✅ Completed scheduled structural concrete pour and surface finishing (120 yd³).
-            - ✅ Reinforcement steel delivery offloaded, inventoried, and tied.
-            - ✅ Column cages completed for Floor 4 frame.
+            default_notes_md = """# Daily Field Operations & Progress Intelligence
+**Automated Progress Highlights:**
+- ✅ Completed scheduled structural concrete pour and surface finishing (120 yd³).
+- ✅ Reinforcement steel delivery offloaded, inventoried, and tied.
+- ✅ Column cages completed for Floor 4 frame.
 
-            **Trade Delays & Bottlenecks:**
-            - ⏱️ Transit mixer delayed **1.5 hrs** due to highway accident (standby crew overtime).
-            - ⏱️ Subcontractor absenteeism: **4 masons** missing.
+**Trade Delays & Bottlenecks:**
+- ⏱️ Transit mixer delayed **1.5 hrs** due to highway accident (standby crew overtime).
+- ⏱️ Subcontractor absenteeism: **4 masons** missing.
 
-            **Next-Day Action Punch List:**
-            1. Conduct 24-hr compressive strength cylinder break checks on slab pour.
-            2. Verify rebar spacing and cover block placement for Floor 4.
-            3. Reconfirm ready-mix delivery schedule to prevent logistics delay recurrence.
-            """)
+**Next-Day Action Punch List:**
+1. Conduct 24-hr compressive strength cylinder break checks on slab pour.
+2. Verify rebar spacing and cover block placement for Floor 4.
+3. Reconfirm ready-mix delivery schedule to prevent logistics delay recurrence.
+"""
+            st.markdown(default_notes_md)
+            st.markdown("---")
+            render_copy_output_widget(default_notes_md, download_filename="daily_progress_report.md", label="📋 Copy Daily Site Report", show_code_block=False)
 
 # ==========================================
 # TAB 5: CONSTRUCTION AI KNOWLEDGE BOT
@@ -1605,9 +1738,8 @@ with tab5:
                 if ans:
                     st.markdown(f"**Question:** {q_final}")
                     st.markdown(ans)
-                    with st.expander("📋 One-Click Copy: Code Answer (Markdown)", expanded=False):
-                        st.caption("Click the copy icon in the upper-right corner to copy this advisory response to your clipboard:")
-                        st.code(f"**Engineering Inquiry:** {q_final}\n\n**Regulatory Answer:**\n{ans}", language="markdown")
+                    st.markdown("---")
+                    render_copy_output_widget(f"**Engineering Inquiry:** {q_final}\n\n**Regulatory Answer:**\n{ans}", download_filename="code_advisory_answer.md", label="📋 Copy Code Answer to Clipboard")
         else:
             with st.spinner("Consulting building code specifications..."):
                 time.sleep(0.5)
@@ -1624,9 +1756,9 @@ with tab5:
                 - `ACI 305R-20 Guide to Hot Weather Concreting`
                 - `ASTM C309 Standard Specification for Liquid Membrane-Forming Compounds`
                 """)
-                with st.expander("📋 One-Click Copy: Code Answer (Markdown)", expanded=False):
-                    st.caption("Click the copy icon in the upper-right corner to copy this advisory response to your clipboard:")
-                    st.code(f"**Engineering Inquiry:** {q_final}\n\n**Regulatory Answer (ACI 308R):**\nAccording to ACI 308R, standard Ordinary Portland Cement requires a minimum moist curing period of 7 days, or until at least 70% of specified 28-day compressive strength (f'c) is attained. For high-early-strength concrete (Type III), minimum duration is 3 days.", language="markdown")
+                st.markdown("---")
+                code_ans_md = f"**Engineering Inquiry:** {q_final}\n\n**Regulatory Answer (ACI 308R):**\nAccording to ACI 308R, standard Ordinary Portland Cement requires a minimum moist curing period of 7 days, or until at least 70% of specified 28-day compressive strength (f'c) is attained. For high-early-strength concrete (Type III), minimum duration is 3 days."
+                render_copy_output_widget(code_ans_md, download_filename="code_advisory_answer.md", label="📋 Copy Code Answer to Clipboard")
 
 st.markdown("---")
 st.caption("Multimodal Construction Intelligence Platform • Certified for Skill Wallet Capstone Submission • Built with Streamlit, FastAPI, and Google Gemini Multimodal AI")

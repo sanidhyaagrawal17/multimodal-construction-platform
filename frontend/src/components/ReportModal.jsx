@@ -1,12 +1,13 @@
-import React from 'react';
-import { X, Printer, Download, FileText } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Printer, Download, FileText, Copy, Check } from 'lucide-react';
 
 export default function ReportModal({ isOpen, onClose, reportData }) {
+  const [copied, setCopied] = useState(false);
   if (!isOpen) return null;
 
   const handlePrint = () => window.print();
 
-  const handleDownloadMarkdown = () => {
+  const getMarkdown = () => {
     let md = `# Multimodal Construction Intelligence Platform - Executive Audit Report\n`;
     md += `Generated: ${new Date().toUTCString()}\n`;
     md += `Standards Enforced: OSHA 1926 • ACI 318 • IBC 2024\n\n`;
@@ -17,7 +18,30 @@ export default function ReportModal({ isOpen, onClose, reportData }) {
       md += `- Safety Compliance Score: ${s.safety_score}/100 (${s.overall_risk_level} Risk)\n`;
       md += `- Summary: ${s.summary}\n\n`;
     }
+    return md;
+  };
 
+  const handleCopyMarkdown = () => {
+    const md = getMarkdown();
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(md).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      });
+    } else {
+      const ta = document.createElement('textarea');
+      ta.value = md;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleDownloadMarkdown = () => {
+    const md = getMarkdown();
     const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -42,6 +66,13 @@ export default function ReportModal({ isOpen, onClose, reportData }) {
             >
               <Printer className="w-3.5 h-3.5" />
               <span>Print</span>
+            </button>
+            <button
+              onClick={handleCopyMarkdown}
+              className="flex items-center space-x-1 px-2.5 py-1 rounded bg-[#0284c7] hover:bg-[#0369a1] text-white text-xs font-semibold transition cursor-pointer"
+            >
+              {copied ? <Check className="w-3.5 h-3.5 text-emerald-300" /> : <Copy className="w-3.5 h-3.5" />}
+              <span>{copied ? "Copied!" : "Copy Output"}</span>
             </button>
             <button
               onClick={handleDownloadMarkdown}
