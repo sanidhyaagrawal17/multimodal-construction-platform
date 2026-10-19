@@ -648,7 +648,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
           </div>
 
           {/* Bottom Detection Stats Strip - Derived from detections */}
-          <div className="px-4 py-2.5 bg-[#0a0f1d] border-t border-[#1c263c] flex flex-wrap items-center justify-between text-xs font-medium">
+          <div className="px-4 pt-2.5 pb-[18px] bg-[#0a0f1d] border-t border-[#1c263c] flex flex-wrap items-center justify-between text-xs font-medium">
             <div className="flex flex-wrap items-center gap-6">
               <div className="flex items-center space-x-2">
                 <span className="text-zinc-400">Workers Detected:</span>
