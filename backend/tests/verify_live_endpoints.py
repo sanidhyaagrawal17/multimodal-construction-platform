@@ -20,13 +20,14 @@ def test_endpoint(name, url, method='GET', data=None):
         print(f"[FAIL] Error on {name}: {e}")
         return False
 
-base = 'http://127.0.0.1:8000/api/v1'
-results = []
+def run_live_tests():
+    base = 'http://127.0.0.1:8000/api/v1'
+    results = []
 
-print("--- Testing Live Backend Endpoints on http://127.0.0.1:8000 ---")
+    print("--- Testing Live Backend Endpoints on http://127.0.0.1:8000 ---")
 
-# 1. Health
-results.append(test_endpoint('Health Check', f'{base}/health'))
+    # 1. Health
+    results.append(test_endpoint('Health Check', f'{base}/health'))
 
 # 2. Preset Samples
 results.append(test_endpoint('Preset Samples', f'{base}/samples'))
