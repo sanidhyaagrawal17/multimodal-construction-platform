@@ -36,6 +36,13 @@ def run_test_on_image(image_path, test_name, output_image_path):
     
     # 2. Build Unified Audit Findings
     audit = build_unified_audit_findings(raw_data)
+    print("\n" + "=" * 60)
+    print("LIVE STREAMLIT STATS STRIP:")
+    print(f"Workers Detected: {audit['workers_detected']} Active")
+    print(f"PPE Compliance: {audit['ppe_status_text']} {audit['ppe_sub_text']}")
+    print(f"Hazards Found: {len(audit['hazards'])} Detected")
+    print("=" * 60)
+    
     print("\nAuthoritative Unified Audit Findings:")
     print(f"- Scene Type: {audit['scene_type']}")
     print(f"- Workers Detected: {audit['workers_detected']}")

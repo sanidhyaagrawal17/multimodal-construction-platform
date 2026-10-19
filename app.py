@@ -32,44 +32,35 @@ st.markdown("""
     
     /* Universal suppression of literal ligature text for st.expander in all Streamlit versions */
     details[data-testid="stExpander"] summary span:first-child,
-    details[data-testid="stExpander"] summary [data-testid*="Icon"],
-    details[data-testid="stExpander"] summary .material-symbols-rounded,
+    details[data-testid="stExpander"] summary [class*="Icon"],
+    details[data-testid="stExpander"] summary [class*="icon"],
+    details[data-testid="stExpander"] summary [class*="material"],
     details[data-testid="stExpander"] summary svg,
     [data-testid="stExpanderToggleIcon"],
     [data-testid="stExpanderIcon"] {
         font-size: 0px !important;
         line-height: 0 !important;
         color: transparent !important;
-        display: inline-flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 18px !important;
-        height: 18px !important;
-        min-width: 18px !important;
+        visibility: hidden !important;
+        width: 0px !important;
+        height: 0px !important;
+        display: inline-block !important;
         overflow: hidden !important;
-        position: relative !important;
         user-select: none !important;
-        vertical-align: middle !important;
     }
     
-    details[data-testid="stExpander"] summary span:first-child::before,
-    details[data-testid="stExpander"] summary [data-testid*="Icon"]::before,
-    [data-testid="stExpanderToggleIcon"]::before,
-    [data-testid="stExpanderIcon"]::before {
-        content: "▶" !important;
+    details[data-testid="stExpander"] summary::before {
+        content: "▶ " !important;
         font-size: 11px !important;
         color: #94a3b8 !important;
         display: inline-block !important;
-        line-height: 1 !important;
-        transition: transform 0.15s ease !important;
+        margin-right: 6px !important;
+        vertical-align: middle !important;
     }
     
-    details[data-testid="stExpander"][open] summary span:first-child::before,
-    details[data-testid="stExpander"][open] summary [data-testid*="Icon"]::before,
-    details[open] [data-testid="stExpanderToggleIcon"]::before,
-    [aria-expanded="true"] [data-testid="stExpanderToggleIcon"]::before,
-    [aria-expanded="true"] [data-testid="stExpanderIcon"]::before {
-        content: "▼" !important;
+    details[data-testid="stExpander"][open] summary::before,
+    details[open] summary::before {
+        content: "▼ " !important;
     }
 
     .main-title { font-size: 2.1rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.2rem; }
@@ -88,6 +79,27 @@ st.markdown("""
     .stat-val { font-size: 1.5rem; font-weight: 800; color: #f8fafc; font-family: monospace; }
 </style>
 """, unsafe_allow_html=True)
+
+# Active background DOM scrubber ensuring no literal expander ligature text ever leaks
+components.html("""
+<script>
+function scrubLigatures() {
+    try {
+        const doc = window.parent.document;
+        doc.querySelectorAll('details[data-testid="stExpander"] summary, [data-testid="stExpander"]').forEach(el => {
+            const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
+            let n;
+            while (n = walker.nextNode()) {
+                if (n.nodeValue && n.nodeValue.includes('keyboard_arrow_right')) {
+                    n.nodeValue = n.nodeValue.replace(/keyboard_arrow_right/g, '');
+                }
+            }
+        });
+    } catch(e) {}
+}
+setInterval(scrubLigatures, 150);
+</script>
+""", height=0, width=0)
 
 import base64
 
@@ -273,8 +285,8 @@ OSHA_HAZARD_REGISTRY = {
     "scaffold_no_fall_arrest": {
         "standard": "OSHA 1926.451(g)(1)",
         "subpart": "Subpart L (Scaffolds)",
-        "title": "Scaffold Fall Protection — No Visible Personal Fall Arrest",
-        "description": "Worker positioned on elevated scaffold platform exceeding 10 ft without visible personal fall arrest connection (PFAS) or anchorage tethering per OSHA 1926.451(g)(1).",
+        "title": "Scaffold Fall Protection — No Fall Protection Visible",
+        "description": "Worker positioned on elevated scaffold platform appearing to be more than 10 ft above the lower level without visible fall protection (neither compliant guardrails nor personal fall arrest connection) per OSHA 1926.451(g)(1).",
         "severity": "Critical",
         "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work."
     },
@@ -282,7 +294,7 @@ OSHA_HAZARD_REGISTRY = {
         "standard": "OSHA 1926.451(g)(4)(i)",
         "subpart": "Subpart L (Scaffolds)",
         "title": "Unguarded Scaffold Platform Edge (Approximate Zone)",
-        "description": "Scaffold working platform exceeds 10 ft height and lacks compliant perimeter guardrail toprails and midrails along exposed open edges per OSHA 1926.451(g)(4)(i).",
+        "description": "Scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Box denotes approximate unguarded zone.",
         "severity": "Critical",
         "action": "Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i)."
     },
@@ -529,11 +541,11 @@ def build_unified_audit_findings(raw_data):
                     "category": "person",
                     "severity": "Critical",
                     "worker_badge": "W1",
-                    "short_label": "Worker 1 · No tie-off visible",
-                    "title": "Scaffold Fall Protection — No Visible Personal Fall Arrest",
+                    "short_label": "Worker 1 · No fall protection visible",
+                    "title": "Scaffold Fall Protection — No Fall Protection Visible",
                     "osha_standard": "OSHA 1926.451(g)(1)",
                     "subpart": "Subpart L (Scaffolds)",
-                    "observation": "Worker 1 positioned on elevated scaffold frame without visible personal fall arrest connection per OSHA 1926.451(g)(1).",
+                    "observation": "Worker 1 positioned on elevated scaffold platform appearing to be more than 10 ft above the lower level without visible fall protection: neither compliant guardrails nor personal fall arrest connection per OSHA 1926.451(g)(1).",
                     "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work.",
                     "is_hazard": True,
                     "box_2d": [350, 248, 600, 372]
@@ -543,11 +555,11 @@ def build_unified_audit_findings(raw_data):
                     "category": "person",
                     "severity": "Critical",
                     "worker_badge": "W2",
-                    "short_label": "Worker 2 · No tie-off visible",
-                    "title": "Scaffold Fall Protection — No Visible Personal Fall Arrest",
+                    "short_label": "Worker 2 · No fall protection visible",
+                    "title": "Scaffold Fall Protection — No Fall Protection Visible",
                     "osha_standard": "OSHA 1926.451(g)(1)",
                     "subpart": "Subpart L (Scaffolds)",
-                    "observation": "Worker 2 positioned on elevated scaffold frame without visible personal fall arrest connection per OSHA 1926.451(g)(1).",
+                    "observation": "Worker 2 positioned on elevated scaffold platform appearing to be more than 10 ft above the lower level without visible fall protection: neither compliant guardrails nor personal fall arrest connection per OSHA 1926.451(g)(1).",
                     "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work.",
                     "is_hazard": True,
                     "box_2d": [460, 138, 695, 273]
@@ -561,7 +573,7 @@ def build_unified_audit_findings(raw_data):
                     "title": "Unguarded Scaffold Platform Edge (Approximate Zone)",
                     "osha_standard": "OSHA 1926.451(g)(4)(i)",
                     "subpart": "Subpart L (Scaffolds)",
-                    "observation": "Scaffold working platforms lack compliant perimeter guardrail toprails and midrails along exposed open edges per OSHA 1926.451(g)(4)(i). Box denotes approximate unguarded zone.",
+                    "observation": "Scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Box denotes approximate unguarded zone.",
                     "action": "Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i).",
                     "is_hazard": True,
                     "box_2d": [320, 450, 560, 770]
@@ -572,14 +584,14 @@ def build_unified_audit_findings(raw_data):
                     "category": "person",
                     "severity": "Critical",
                     "worker_badge": "W1",
-                    "short_label": "Worker 1 · No tie-off visible",
+                    "short_label": "Worker 1 · No fall protection visible",
                     "box_2d": [350, 248, 600, 372]
                 },
                 {
                     "category": "person",
                     "severity": "Critical",
                     "worker_badge": "W2",
-                    "short_label": "Worker 2 · No tie-off visible",
+                    "short_label": "Worker 2 · No fall protection visible",
                     "box_2d": [460, 138, 695, 273]
                 },
                 {
@@ -661,8 +673,8 @@ def build_unified_audit_findings(raw_data):
             short_label = f"Worker {p_idx} · PPE Compliant"
             obs = f"Worker {p_idx} observed with verified head protection and high-visibility apparel on stable grade."
         else:
-            short_label = f"Worker {p_idx} · No tie-off visible"
-            obs = f"Worker {p_idx} positioned on elevated scaffold frame without visible personal fall arrest connection per OSHA 1926.451(g)(1)."
+            short_label = f"Worker {p_idx} · No fall protection visible"
+            obs = f"Worker {p_idx} positioned on elevated scaffold platform appearing to be more than 10 ft above the lower level without visible fall protection: neither compliant guardrails nor personal fall arrest connection per OSHA 1926.451(g)(1)."
             
         finding = {
             "id": f"finding_w_{p_idx}",
@@ -681,6 +693,10 @@ def build_unified_audit_findings(raw_data):
         }
         deduped_hazards.append(finding)
         
+    # Deduplicate non-person scaffold hazards to retain primary structural hazard per platform elevation zone
+    if any(d.get("hazard_key") == "scaffold_missing_guardrail" for d in deduped_hazards_nonperson):
+        deduped_hazards_nonperson = [d for d in deduped_hazards_nonperson if d.get("hazard_key") == "scaffold_missing_guardrail"][:1]
+
     # Process Non-Person Hazards: strictly map to canonical registry
     for h_idx, d in enumerate(deduped_hazards_nonperson, start=1):
         h_key = d.get("hazard_key", "")

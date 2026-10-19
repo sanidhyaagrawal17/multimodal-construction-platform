@@ -294,10 +294,12 @@ The **Multimodal Construction Intelligence Platform** is an **AI-assisted decisi
    - The platform adheres to strict truth-first principles: When headwear or PPE is obscured by viewing angle, distance (>50 ft), hoods, balaclavas, or low optical resolution, the system returns:  
      `Possible non-compliance: head protection not clearly visible (OSHA 1926.100 Spot-Check Required)`
    - The platform eliminates false assurance by refusing to grant unverified 100% passes when head protection cannot be confirmed.
-3. **Jurisdictional Standard Hierarchy**:
+3. **Jurisdictional Standard Hierarchy & Subpart L Fall Protection Criteria**:
    - In accordance with 29 CFR 1926.500(a)(2)(i), scaffolds are strictly excluded from general Subpart M fall protection and are governed under **Subpart L (§ 1926.451)**.
-   - Guardrails are cited specifically under **§ 1926.451(g)(4)(i)**, while personal fall arrest anchorages cite **§ 1926.451(g)(1)**.
-   - High-visibility apparel is evaluated for active equipment zones and is not falsely mandated as universal for elevated scaffold trades.
+   - Under **29 CFR 1926.451(g)(1)(vii)**, employees on supported frame scaffolds more than 10 ft above a lower level must be protected by *either* a personal fall arrest system (PFAS) *or* a guardrail system meeting § 1926.451(g)(4). A missing personal fall arrest lanyard constitutes a violation specifically when compliant perimeter guardrails are also absent. The platform evaluates both controls simultaneously to report: *"No fall protection visible: neither guardrails nor personal fall arrest."*
+   - Guardrails are cited specifically under **§ 1926.451(g)(4)(i)**, while fall protection criteria cites **§ 1926.451(g)(1)**.
+   - Monocular 2D photographs cannot yield laser-calibrated dimensional elevation; heights are reported as *"appears to be more than 10 ft above the lower level"* based on structural scaffolding frame tiers.
+   - High-visibility apparel is evaluated for active equipment zones and is not falsely mandated as universal for elevated scaffold trades under Subpart L.
 4. **Structural Forensics & Physical NDT Requirements**:
    - Concrete crack classifications (ACI 318-19 / ACI 224R) represent non-invasive visual surface triage.
    - Subsurface void propagation, steel reinforcement yielding, or rebar corrosion must be verified via physical non-destructive testing (ultrasonic pulse velocity, ground-penetrating radar, or core compression tests) under the direction of a licensed Professional Engineer (PE / SE).
