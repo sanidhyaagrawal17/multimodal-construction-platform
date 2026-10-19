@@ -105,3 +105,18 @@ def test_compliant_ground_worker():
     assert audit["hazard_score"] == 12
     assert audit["fall_risk_pct"] == 10
     assert "100% Pass" in audit["ppe_status_text"]
+
+def test_non_construction_scene():
+    """Verify that a non-construction scene returns 'Unable to assess' and 0 hazards."""
+    raw_non_con = {
+        "scene_type": "non_construction",
+        "detections": []
+    }
+    audit = root_app.build_unified_audit_findings(raw_non_con)
+    assert audit["scene_type"] == "non_construction"
+    assert audit["workers_detected"] == 0
+    assert len(audit["hazards"]) == 0
+    assert audit["hazard_score"] == 0
+    assert audit["fall_risk_pct"] == 0
+    assert "Unable to assess" in audit["ppe_status_text"]
+    assert "Unable to assess" in audit["actions"][0]

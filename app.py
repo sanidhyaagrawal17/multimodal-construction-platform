@@ -261,10 +261,11 @@ _VAULT_BYTES = b'QVEuQWI4Uk42SWxEZi02U212TlZfWkxtMkl1UjF1Q3hUbVVHS2hRMmxzXzFtQWx
 
 # Strictly restricted to Google AI Studio Free Tier endpoints. Paid models (Gemini 4 Argon) are permanently excluded.
 FREE_MODELS_CASCADE = [
-    "gemini-3.8-flash",       # Frontier multimodal free model in Google AI Studio
-    "gemini-3.5-flash",       # High-speed multimodal free fallback
+    "gemini-2.5-flash",       # Primary Google AI Studio GA Multimodal Model
+    "gemini-2.5-flash-lite",  # High-throughput GA fallback
+    "gemini-3.5-flash",       # High-speed multimodal free model
     "gemini-3.5-flash-lite",  # High-throughput free fallback
-    "gemini-flash-lite-latest"
+    "gemini-flash-latest"
 ]
 
 def get_protected_key():
@@ -292,9 +293,9 @@ active_key = get_protected_key()
 st.sidebar.markdown("### 🏗️ Intelligence Core")
 
 model_options = [
-    "gemini-3.5-flash (Low-Latency Vision • Recommended)",
-    "gemini-3.8-flash (Frontier Deep Reasoning)",
-    "gemini-3.5-flash-lite (High Throughput)"
+    "gemini-2.5-flash (Google AI Studio GA • Recommended)",
+    "gemini-2.5-flash-lite (High-Throughput GA)",
+    "gemini-3.5-flash (Enhanced Reasoning)"
 ]
 selected_model_choice = st.sidebar.selectbox("Active AI Model", model_options, index=0)
 active_model_name = selected_model_choice.split(" ")[0]

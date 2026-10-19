@@ -177,15 +177,16 @@ The platform includes preloaded samples and clipboard pasting for quick evaluati
 - **Step 1**: Choose **"Use Preloaded Scaffolding Elevation Sample"** (or upload any site photo / click **"📋 Paste from Clipboard"**).
 - **Step 2**: Click **"⚡ Run Live Gemini Vision Audit"**.
 - **Evaluator Observations**:
-  - **Status Badge**: Displays `🟢 Live Gemini Vision Analysis (gemini-3.5-flash)` (or `🟡 Offline Demo Mode` if free-tier quota is exhausted).
-  - **Worker Detection**: Detects **2 Active Workers** (`W1`, `W2`) with bounding boxes placed above the heads with obstacle avoidance.
+  - **Status Badge**: Displays `🟢 Live Gemini Vision Analysis (gemini-2.5-flash)` (or `🟡 Offline Demo Mode` if free-tier API quota is exhausted).
+  - **Worker Detection**: Detects **2 Active Workers** (`W1`, `W2`) with bounding boxes placed above worker heads with obstacle avoidance.
   - **PPE Compliance**: Shows `Possible non-compliance: head protection not clearly visible` (adheres to truth-first principles for distant/hooded workers rather than claiming a false pass).
   - **Hazard Count**: Flags **3 Hazards**:
     1. `Worker 1 · No fall protection visible` [OSHA 1926.451(g)(1)]
     2. `Worker 2 · No fall protection visible` [OSHA 1926.451(g)(1)]
     3. `Scene-Level Finding · Guardrails not visible` [OSHA 1926.451(g)(4)(i)]
-  - **Scene-Level Finding Banner**: Displayed prominently below the image (`🚨 Scene-Level Finding: Guardrails not visible [OSHA 1926.451(g)(4)(i)] — No box drawn on photo`). Suppressing negative-space bounding boxes avoids spatial jumping between runs.
-  - **Scores**: Computes **88 / 100** Hazard Score and **90%** Fall Risk Index (calibrated deterministically at temperature 0.0).
+  - **Scene-Level Finding Banner**: Displayed prominently below the image (`🚨 Scene-Level Finding: Guardrails not visible [OSHA 1926.451(g)(4)(i)] — No box drawn on photo`). Suppressing negative-space bounding boxes eliminates spatial jumping between runs.
+  - **Scores**: Typically scores around **~88 / 100** Hazard Score and **~90%** Fall Risk Index (calculated deterministically from detected findings at temperature 0.0).
+  - **Session Quota & Protection**: Each browser session permits up to 15 live vision audits before prompting a page refresh, shielding the shared free-tier Google AI Studio quota from rapid-fire flooding. If an API rate limit occurs, a polite notification appears and the calibrated heuristic engine guarantees zero crashes.
   - **1-Click Clipboard Export**: Click **"📋 Copy Full Audit Output to Clipboard"** to export the structured Markdown dossier.
 
 ### 2. Crack Diagnostics & ACI 318 (Tab 2)
