@@ -19,12 +19,35 @@ st.set_page_config(
 # --- MODERN TACTICAL DARK CSS & CLIPBOARD ENABLER ---
 st.markdown("""
 <style>
-    * {
-        -webkit-user-select: text !important;
-        -moz-user-select: text !important;
-        -ms-user-select: text !important;
-        user-select: text !important;
+    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
+
+    /* Exclude Streamlit Material icons from user-select overrides so ligatures render as arrow glyphs */
+    *:not([data-testid="stExpanderToggleIcon"]):not([class*="material-symbols"]):not([class*="material-icons"]) {
+        -webkit-user-select: text;
+        -moz-user-select: text;
+        -ms-user-select: text;
+        user-select: text;
     }
+    
+    [data-testid="stExpanderToggleIcon"],
+    .material-symbols-rounded,
+    [class*="material-symbols"],
+    [class*="material-icons"] {
+        font-family: 'Material Symbols Rounded', 'Material Icons' !important;
+        font-weight: normal !important;
+        font-style: normal !important;
+        display: inline-block !important;
+        line-height: 1 !important;
+        text-transform: none !important;
+        letter-spacing: normal !important;
+        word-wrap: normal !important;
+        white-space: nowrap !important;
+        direction: ltr !important;
+        -webkit-font-smoothing: antialiased !important;
+        font-feature-settings: 'liga' !important;
+        user-select: none !important;
+    }
+
     .main-title { font-size: 2.1rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.2rem; }
     .sub-title { font-size: 1.0rem; color: #94a3b8; margin-bottom: 1.5rem; }
     .tactical-card {
@@ -206,51 +229,337 @@ def call_gemini_text(prompt, system_instruction=None):
             continue
     return None
 
-def calibrate_safety_response(data):
-    """Enforce strict OSHA 1926 consistency so metrics, infractions, and detections never contradict."""
-    if not data or not isinstance(data, dict):
-        return data
+OSHA_HAZARD_REGISTRY = {
+    "scaffold_no_fall_arrest": {
+        "standard": "OSHA 1926.451(g)(1)",
+        "subpart": "Subpart L (Scaffolds)",
+        "title": "Scaffold Fall Protection — No Visible Personal Fall Arrest",
+        "description": "Worker positioned on elevated scaffold platform exceeding 10 ft without visible personal fall arrest system (PFAS) or anchorage tethering.",
+        "severity": "Critical",
+        "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work."
+    },
+    "scaffold_missing_guardrail": {
+        "standard": "OSHA 1926.451(g)(1)",
+        "subpart": "Subpart L (Scaffolds)",
+        "title": "Unguarded Scaffold Platform Edge",
+        "description": "Scaffold working platform exceeds 10 ft height and lacks compliant perimeter toprails and midrails on exposed side(s).",
+        "severity": "Critical",
+        "action": "Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per 1926.451(g)(4)."
+    },
+    "scaffold_plank_defect": {
+        "standard": "OSHA 1926.451(b)(1)",
+        "subpart": "Subpart L (Scaffolds)",
+        "title": "Incomplete or Unsecured Scaffold Decking",
+        "description": "Scaffold platform is not fully planked or contains excessive gaps/unsecured wooden or metal planks.",
+        "severity": "Moderate",
+        "action": "Install full-width, secured platform decking and inspect plank span deflection before resuming loading."
+    },
+    "scaffold_missing_toeboard": {
+        "standard": "OSHA 1926.451(h)(1)",
+        "subpart": "Subpart L (Scaffolds)",
+        "title": "Missing Scaffold Toeboard / Falling Object Hazard",
+        "description": "Elevated platform lacks mandatory 3.5-inch outward-facing toeboards to prevent tools/materials from falling onto lower work zones.",
+        "severity": "Moderate",
+        "action": "Install 3.5-inch minimum toeboards or debris netting along all platform perimeters where workers or public may pass below."
+    },
+    "steel_erection_fall_hazard": {
+        "standard": "OSHA 1926.760(a)(1)",
+        "subpart": "Subpart R (Steel Erection)",
+        "title": "Steel Erection — No Visible Tie-off at Elevation",
+        "description": "Ironworker engaged in structural steel framing at elevation exceeding 15 ft without visible active fall arrest tie-off.",
+        "severity": "Critical",
+        "action": "Verify 100% continuous tie-off to certified horizontal lifeline or static anchor post per Subpart R guidelines."
+    },
+    "leading_edge_fall_hazard": {
+        "standard": "OSHA 1926.501(b)(1)",
+        "subpart": "Subpart M (Fall Protection)",
+        "title": "Unprotected Leading Edge / Open Deck",
+        "description": "Worker positioned within 6 ft of an unprotected building floor perimeter or slab leading edge without visible fall arrest system.",
+        "severity": "Critical",
+        "action": "Install perimeter warning line, guardrail system, or personal fall arrest lifeline prior to work within 6 ft of leading edge."
+    },
+    "ppe_no_hardhat": {
+        "standard": "OSHA 1926.100(a)",
+        "subpart": "Subpart E (PPE)",
+        "title": "No Hard Hat Observed / Head Protection Deficient",
+        "description": "Worker observed without certified industrial protective helmet (ANSI Z89.1) in an active overhead hazard area.",
+        "severity": "High",
+        "action": "Enforce mandatory donning of Type I/II industrial hard hat before entering active construction zone."
+    },
+    "ppe_no_hivis": {
+        "standard": "OSHA 1926.200(g)",
+        "subpart": "Subpart E (PPE)",
+        "title": "No High-Visibility Apparel Observed",
+        "description": "Worker lacks high-visibility safety vest or garment (ANSI/ISEA 107) for optical contrast in active equipment zone.",
+        "severity": "Moderate",
+        "action": "Require high-visibility fluorescent class 2/3 vest with retroreflective stripes for all site trades."
+    },
+    "ppe_unverified": {
+        "standard": "OSHA 1926.100",
+        "subpart": "Subpart E (PPE)",
+        "title": "PPE Status Not Optically Verifiable",
+        "description": "Headwear or high-visibility vest cannot be optical-definitively confirmed at current image resolution or viewing angle.",
+        "severity": "Unverified",
+        "action": "Conduct in-person visual spot-check to confirm ANSI hardhat and reflective gear."
+    },
+    "fall_arrest_unverified": {
+        "standard": "OSHA 1926.451(g)",
+        "subpart": "Subpart L (Scaffolds)",
+        "title": "Fall Arrest Tethering Not Optically Verifiable",
+        "description": "Distant worker (>60ft) or occluded body angle prevents optical verification of harness lanyard tie-off.",
+        "severity": "Unverified",
+        "action": "Field supervisor must perform physical spot-check of harness carabiner connection."
+    },
+    "worker_compliant": {
+        "standard": "OSHA 1926.100 / 1926.451",
+        "subpart": "OSHA 1926 Compliant",
+        "title": "Worker in Conformance with Applicable Standards",
+        "description": "Worker exhibits verified head protection, high-visibility apparel, and is not exposed to unprotected fall hazards.",
+        "severity": "OK",
+        "action": "Maintain existing safety controls and continued compliance monitoring."
+    },
+    "safe_condition": {
+        "standard": "OSHA 1926",
+        "subpart": "OSHA 1926 Compliant",
+        "title": "Compliant Work Area",
+        "description": "No imminent safety hazards or standard violations observed in this visual field.",
+        "severity": "OK",
+        "action": "Continue routine site housekeeping and safety oversight."
+    }
+}
 
-    dets = data.get("detections", [])
-    workers = [d for d in dets if d.get("type") == "worker"]
-    critical_hazards = [d for d in dets if d.get("severity") in ["Critical", "High"] or d.get("type") == "hazard"]
-    fall_hazards = [
-        d for d in dets 
-        if any(w in str(d.get("label", "")).lower() for w in ["fall", "edge", "tie-off", "lanyard", "scaffold"])
-        or any(w in str(d.get("description", "")).lower() for w in ["fall", "edge", "tie-off", "lanyard", "scaffold"])
-        or "501" in str(d.get("osha_standard", "")) 
-        or "451" in str(d.get("osha_standard", ""))
-    ]
+def build_unified_audit_findings(raw_data):
+    """
+    Build a single, deduplicated, authoritative list of findings from Gemini's output.
+    All UI sections (stats strip, breakdown cards, infraction log, corrective actions,
+    and Markdown export) consume this exact same list.
+    """
+    if not raw_data or not isinstance(raw_data, dict):
+        return {
+            "scene_type": "construction_active",
+            "workers_detected": 2,
+            "ppe_status_text": "Not Verifiable",
+            "ppe_sub_text": "(Low Optical Confidence · Spot-Check Required)",
+            "ppe_color": "#f59e0b",
+            "hazard_score": 88,
+            "fall_risk_pct": 90,
+            "hazards": [
+                {
+                    "id": "finding_1",
+                    "category": "person",
+                    "severity": "Critical",
+                    "short_label": "Worker 1 · No tie-off visible",
+                    "title": "Scaffold Fall Protection — No Visible Personal Fall Arrest",
+                    "osha_standard": "OSHA 1926.451(g)(1)",
+                    "subpart": "Subpart L (Scaffolds)",
+                    "observation": "Active worker standing on elevated scaffold frame at 25+ ft without visible lanyard tie-off or personal fall arrest system.",
+                    "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work.",
+                    "is_hazard": True,
+                    "box_2d": [350, 248, 600, 372]
+                },
+                {
+                    "id": "finding_2",
+                    "category": "person",
+                    "severity": "Critical",
+                    "short_label": "Worker 2 · No tie-off visible",
+                    "title": "Scaffold Fall Protection — No Visible Personal Fall Arrest",
+                    "osha_standard": "OSHA 1926.451(g)(1)",
+                    "subpart": "Subpart L (Scaffolds)",
+                    "observation": "Second worker positioned on lower scaffold working level without visible lanyard attachment to anchorage.",
+                    "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work.",
+                    "is_hazard": True,
+                    "box_2d": [460, 138, 695, 273]
+                },
+                {
+                    "id": "finding_3",
+                    "category": "hazard",
+                    "severity": "Critical",
+                    "short_label": "Scaffold · Unguarded edge",
+                    "title": "Unguarded Scaffold Platform Edge",
+                    "osha_standard": "OSHA 1926.451(g)(1)",
+                    "subpart": "Subpart L (Scaffolds)",
+                    "observation": "Elevated scaffold platform exceeds 10 ft height and lacks required standard guardrail toprails and midrails on exposed sides.",
+                    "action": "Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per 1926.451(g)(4).",
+                    "is_hazard": True,
+                    "box_2d": [320, 450, 560, 770]
+                }
+            ],
+            "all_detections": [
+                {
+                    "category": "person",
+                    "severity": "Critical",
+                    "short_label": "Worker 1 · No tie-off visible",
+                    "box_2d": [350, 248, 600, 372]
+                },
+                {
+                    "category": "person",
+                    "severity": "Critical",
+                    "short_label": "Worker 2 · No tie-off visible",
+                    "box_2d": [460, 138, 695, 273]
+                },
+                {
+                    "category": "hazard",
+                    "severity": "Critical",
+                    "short_label": "Scaffold · Unguarded edge",
+                    "box_2d": [320, 450, 560, 770]
+                }
+            ],
+            "actions": [
+                "01 [IMMEDIATE ACTION]: Order all elevated workers to immediately tie off securely to certified anchor points or halt elevated work until fall protection is established.",
+                "02 [ENGINEERING FIX]: Erect compliant toprails, midrails, and toe-boards on all open sides and ends of the scaffold platforms per OSHA 1926.451.",
+                "03 [DOCUMENTATION]: Issue safety violation notice to subcontractor, photograph corrected scaffold configuration, and log incident in site safety records."
+            ]
+        }
 
-    # Deterministic OSHA scoring logic
-    if len(fall_hazards) > 0 or any(d.get("severity") in ["Critical", "High"] for d in dets):
-        data["hazard_score"] = max(data.get("hazard_score", 0), 84)
-        data["fall_risk_pct"] = max(data.get("fall_risk_pct", 0), 88)
-    elif len(critical_hazards) > 0:
-        data["hazard_score"] = max(data.get("hazard_score", 0), 55)
-        data["fall_risk_pct"] = max(data.get("fall_risk_pct", 0), 45)
+    scene_type = raw_data.get("scene_type", "construction_active")
+    
+    # Non-construction image handler: stay completely quiet
+    if scene_type == "non_construction":
+        return {
+            "scene_type": "non_construction",
+            "workers_detected": 0,
+            "ppe_status_text": "N/A",
+            "ppe_sub_text": "(Non-Construction Scene)",
+            "ppe_color": "#94a3b8",
+            "hazard_score": 0,
+            "fall_risk_pct": 0,
+            "hazards": [],
+            "all_detections": [],
+            "actions": ["No construction activity detected. No OSHA standards triggered."]
+        }
+
+    raw_dets = raw_data.get("detections", [])
+    deduped_hazards = []
+    worker_count = raw_data.get("workers_detected", 0)
+    detected_people = 0
+
+    for idx, d in enumerate(raw_dets):
+        cat = d.get("category", "hazard")
+        if cat == "person" or any(w in str(d.get("label", "")).lower() for w in ["worker", "person", "ironworker", "man"]):
+            cat = "person"
+            detected_people += 1
+
+        h_key = d.get("hazard_key", "")
+        # Fallback keyword matching if model returned arbitrary key
+        if not h_key or h_key not in OSHA_HAZARD_REGISTRY:
+            lbl_lower = (str(d.get("label", "")) + " " + str(d.get("short_label", "")) + " " + str(d.get("description", "")) + " " + str(d.get("observation", ""))).lower()
+            if "scaffold" in lbl_lower and ("guard" in lbl_lower or "edge" in lbl_lower or "rail" in lbl_lower):
+                h_key = "scaffold_missing_guardrail"
+            elif "scaffold" in lbl_lower and ("fall" in lbl_lower or "tie" in lbl_lower or "lanyard" in lbl_lower or "arrest" in lbl_lower):
+                h_key = "scaffold_no_fall_arrest"
+            elif "steel" in lbl_lower or "ironworker" in lbl_lower:
+                h_key = "steel_erection_fall_hazard"
+            elif "leading edge" in lbl_lower or "perimeter" in lbl_lower:
+                h_key = "leading_edge_fall_hazard"
+            elif "hardhat" in lbl_lower or "helmet" in lbl_lower:
+                h_key = "ppe_no_hardhat"
+            elif "vest" in lbl_lower or "hi-vis" in lbl_lower:
+                h_key = "ppe_no_hivis"
+            elif cat == "person":
+                h_key = "scaffold_no_fall_arrest"
+            else:
+                h_key = "scaffold_missing_guardrail"
+
+        reg = OSHA_HAZARD_REGISTRY[h_key]
+        
+        # Determine concise label
+        short_label = d.get("short_label", "")
+        if not short_label or len(short_label) > 28:
+            if cat == "person":
+                short_label = f"Worker {detected_people} · No tie-off visible"
+            else:
+                short_label = reg["title"].split("—")[0].strip()
+                if len(short_label) > 24:
+                    short_label = short_label[:22] + "…"
+
+        obs = d.get("observation", d.get("description", reg["description"]))
+        # Enforce "not visible" / "no visible tie-off" phrasing
+        obs = obs.replace("lacking required personal fall arrest", "without visible personal fall arrest")
+        obs = obs.replace("lacks personal fall arrest", "without visible personal fall arrest")
+        obs = obs.replace("lacks fall arrest", "no visible fall arrest")
+        obs = obs.replace("lacking fall arrest", "no visible fall arrest")
+
+        finding = {
+            "id": f"finding_{idx+1}",
+            "category": cat,
+            "hazard_key": h_key,
+            "severity": reg["severity"],
+            "short_label": short_label,
+            "title": reg["title"],
+            "osha_standard": reg["standard"],
+            "subpart": reg["subpart"],
+            "observation": obs,
+            "action": reg["action"],
+            "is_hazard": reg["severity"] in ["Critical", "High", "Moderate"],
+            "box_2d": d.get("box_2d", d.get("bbox", {}))
+        }
+        deduped_hazards.append(finding)
+
+    # Workers count
+    total_workers = max(worker_count, detected_people)
+    
+    # Filter only actual hazards for infractions
+    actual_hazards = [h for h in deduped_hazards if h["is_hazard"]]
+
+    # PPE Status calculation
+    raw_ppe = str(raw_data.get("ppe_status", "")).lower()
+    if total_workers == 0:
+        ppe_str = "N/A"
+        ppe_sub = "(No Workers in View)"
+        ppe_col = "#94a3b8"
+    elif "non" in raw_ppe or any(h["hazard_key"] in ["ppe_no_hardhat", "ppe_no_hivis"] for h in actual_hazards):
+        ppe_str = "Non-Compliant"
+        ppe_sub = "(Missing Head / High-Vis Protection)"
+        ppe_col = "#f87171"
+    elif "compliant" in raw_ppe and not any(h["hazard_key"] in ["ppe_unverified", "ppe_no_hardhat", "ppe_no_hivis"] for h in actual_hazards):
+        ppe_str = "100% Pass"
+        ppe_sub = "(Strict OSHA 1926.100)"
+        ppe_col = "#34d399"
     else:
-        data["hazard_score"] = min(data.get("hazard_score", 20), 28)
-        data["fall_risk_pct"] = min(data.get("fall_risk_pct", 15), 20)
+        ppe_str = "Not Verifiable"
+        ppe_sub = "(Low Optical Confidence · Spot-Check Required)"
+        ppe_col = "#f59e0b"
 
-    data["workers_detected"] = len(workers) or data.get("workers_detected", 2)
-    data["hazards_count"] = max(len(critical_hazards), len(fall_hazards)) or data.get("hazards_count", 2)
-
-    # Strict OSHA PPE Separation (OSHA 1926.100)
-    ppe_infractions = [d for d in dets if d.get("type") == "ppe" and d.get("severity") in ["Critical", "High"]]
-    if len(ppe_infractions) > 0:
-        data["ppe_compliance_pct"] = 50
+    # Score calculation
+    if len(actual_hazards) == 0:
+        hz_score = 12 if total_workers > 0 else 0
+        fall_risk = 10 if total_workers > 0 else 0
     else:
-        data["ppe_compliance_pct"] = 100
+        crit_count = sum(1 for h in actual_hazards if h["severity"] == "Critical")
+        if crit_count > 0:
+            hz_score = max(raw_data.get("hazard_score", 0), 85)
+            fall_risk = max(raw_data.get("fall_risk_pct", 0), 88)
+        else:
+            hz_score = max(raw_data.get("hazard_score", 0), 55)
+            fall_risk = max(raw_data.get("fall_risk_pct", 0), 50)
 
-    # Ensure all detections have descriptions and standards
-    for d in dets:
-        if not d.get("description"):
-            d["description"] = f"Detected {d.get('label', 'element')} on working deck under {d.get('osha_standard', 'OSHA 1926')} inspection."
-        if not d.get("osha_standard"):
-            d["osha_standard"] = "OSHA 1926.501" if d.get("type") == "hazard" else "OSHA 1926.100"
+    # Corrective actions derived directly from actual hazards
+    actions = []
+    seen_actions = set()
+    for h in actual_hazards:
+        act = h["action"]
+        if act not in seen_actions:
+            seen_actions.add(act)
+            actions.append(act)
+    
+    if len(actions) == 0:
+        if total_workers > 0:
+            actions = ["Maintain routine safety controls, tool box talks, and continued PPE spot-checks."]
+        else:
+            actions = ["Maintain perimeter security and routine scaffold inspections."]
 
-    return data
+    return {
+        "scene_type": scene_type,
+        "workers_detected": total_workers,
+        "ppe_status_text": ppe_str,
+        "ppe_sub_text": ppe_sub,
+        "ppe_color": ppe_col,
+        "hazard_score": hz_score,
+        "fall_risk_pct": fall_risk,
+        "hazards": actual_hazards,
+        "all_detections": deduped_hazards,
+        "actions": actions
+    }
 
 def draw_safety_annotations(base_image):
     """Draw tactical OSHA bounding boxes on the scaffold image (Calibrated Fallback)."""
@@ -264,39 +573,32 @@ def draw_safety_annotations(base_image):
     draw = ImageDraw.Draw(img)
     w, h = img.size
 
-    # Worker 1: Critical Fall Protection box
+    # Fallback annotations with distinct colors
+    # Worker 1: Amber box
     x1, y1 = int(0.375 * w), int(0.115 * h)
     x2, y2 = int((0.375 + 0.215) * w), int((0.115 + 0.845) * h)
-    draw.rectangle([x1, y1, x2, y2], outline=(239, 68, 68), width=3)
-    draw.rectangle([x1, max(0, y1 - 26), x1 + 290, y1], fill=(220, 38, 38))
-    draw.text((x1 + 8, max(0, y1 - 22)), "OSHA 1926.501(b)(1) · Critical · 98%", fill=(255, 255, 255))
+    draw.rectangle([x1, y1, x2, y2], outline=(245, 158, 11), width=3)
+    draw.rectangle([x1, max(0, y1 - 26), x1 + 270, y1], fill=(217, 119, 6))
+    draw.text((x1 + 8, max(0, y1 - 22)), "Worker 1 · No tie-off visible", fill=(255, 255, 255))
 
-    # Hardhat: Compliant PPE child box (right-anchored label)
+    # Hardhat: Green child box
     hx1, hy1 = int(0.455 * w), int(0.115 * h)
     hx2, hy2 = int((0.455 + 0.080) * w), int((0.115 + 0.120) * h)
     draw.rectangle([hx1, hy1, hx2, hy2], outline=(16, 185, 129), width=2)
     draw.rectangle([hx2 + 4, hy1, hx2 + 105, hy1 + 20], fill=(16, 185, 129))
     draw.text((hx2 + 8, hy1 + 3), "Hardhat · OK", fill=(255, 255, 255))
 
-    # Scaffold Hazard: Yellow box
+    # Scaffold Hazard: Vivid Red box
     sx1, sy1 = int(0.580 * w), int(0.420 * h)
     sx2, sy2 = int((0.580 + 0.250) * w), int((0.420 + 0.360) * h)
-    draw.rectangle([sx1, sy1, sx2, sy2], outline=(234, 179, 8), width=3)
-    draw.rectangle([sx1, sy1 - 24, sx1 + 280, sy1], fill=(234, 179, 8))
-    draw.text((sx1 + 8, sy1 - 20), "OSHA 1926.451(g)(1) · Moderate · 91%", fill=(0, 0, 0))
-
-    # Worker 2: Distant / Unverified dashed box
-    dx1, dy1 = int(0.855 * w), int(0.215 * h)
-    dx2, dy2 = int((0.855 + 0.053) * w), int((0.215 + 0.195) * h)
-    draw.rectangle([dx1, dy1, dx2, dy2], outline=(148, 163, 184), width=2)
-    label_w = 215
-    draw.rectangle([dx2 - label_w, max(0, dy1 - 24), dx2, dy1], fill=(51, 65, 85))
-    draw.text((dx2 - label_w + 8, max(0, dy1 - 20)), "Worker 2 (Distant) · Unverified", fill=(255, 255, 255))
+    draw.rectangle([sx1, sy1, sx2, sy2], outline=(239, 68, 68), width=3)
+    draw.rectangle([sx1, sy1 - 24, sx1 + 260, sy1], fill=(220, 38, 38))
+    draw.text((sx1 + 8, sy1 - 20), "Scaffold · Unguarded edge", fill=(255, 255, 255))
 
     return img
 
 def draw_dynamic_annotations(base_image, detections):
-    """Draw dynamically parsed bounding boxes from live Gemini vision inference with zero label collision."""
+    """Draw dynamically parsed bounding boxes with 2% height scaled fonts and obstacle avoidance."""
     target_w = 1280
     if base_image.width != target_w:
         target_h = int(base_image.height * (target_w / base_image.width))
@@ -304,197 +606,192 @@ def draw_dynamic_annotations(base_image, detections):
     else:
         img = base_image.copy()
 
-    # Convert to RGBA for crisp translucent overlays
     img = img.convert("RGBA")
     overlay = Image.new("RGBA", img.size, (255, 255, 255, 0))
     draw = ImageDraw.Draw(overlay)
     canvas_w, canvas_h = img.size
 
+    # Font scaled to ~2% of image height
+    font_size = max(14, int(canvas_h * 0.02))
+    font = None
+    for fname in ["arial.ttf", "DejaVuSans.ttf", "LiberationSans-Regular.ttf"]:
+        try:
+            font = ImageFont.truetype(fname, font_size)
+            break
+        except Exception:
+            pass
+    if font is None:
+        try:
+            font = ImageFont.load_default()
+        except Exception:
+            font = None
+
     def overlaps(r1, r2):
-        # r = [x1, y1, x2, y2]
         return not (r1[2] <= r2[0] or r1[0] >= r2[2] or r1[3] <= r2[1] or r1[1] >= r2[3])
 
-    occupied_rects = []
+    occupied_labels = []
 
-    # Priority: primary workers first, then hazards, then PPE, then unverified/distant
-    def get_priority(d):
-        dtype = d.get("type", "worker")
-        sev = d.get("severity", "Moderate")
-        if dtype == "worker" and sev != "Unverified":
-            return 1
-        if dtype == "hazard":
-            return 2
-        if dtype == "ppe":
-            return 3
-        return 4
-
-    sorted_detections = sorted(detections, key=get_priority)
-
-    for d in sorted_detections:
-        # Universal bounding box coordinate extractor
+    # Pre-parse all bounding boxes in pixel coordinates
+    parsed_items = []
+    for d in detections:
         bx, by, bw, bh = 0.0, 0.0, 0.1, 0.1
-        if "box_2d" in d and isinstance(d["box_2d"], (list, tuple)) and len(d["box_2d"]) == 4:
-            ymin, xmin, ymax, xmax = [float(v) for v in d["box_2d"]]
+        box = d.get("box_2d", d.get("bbox", {}))
+        if isinstance(box, (list, tuple)) and len(box) == 4:
+            ymin, xmin, ymax, xmax = [float(v) for v in box]
             if ymax > 1.0 or xmax > 1.0 or ymin > 1.0 or xmin > 1.0:
                 ymin, xmin, ymax, xmax = ymin / 1000.0, xmin / 1000.0, ymax / 1000.0, xmax / 1000.0
             bx = min(xmin, xmax)
             by = min(ymin, ymax)
             bw = max(0.01, abs(xmax - xmin))
             bh = max(0.01, abs(ymax - ymin))
-        else:
-            bbox = d.get("bbox", {})
-            if isinstance(bbox, dict):
-                x1_raw = float(bbox.get("x", bbox.get("x1", bbox.get("xmin", 0.0))))
-                y1_raw = float(bbox.get("y", bbox.get("y1", bbox.get("ymin", 0.0))))
-                if "x2" in bbox or "xmax" in bbox:
-                    x2_raw = float(bbox.get("x2", bbox.get("xmax", x1_raw + 100.0)))
-                    y2_raw = float(bbox.get("y2", bbox.get("ymax", y1_raw + 100.0)))
-                    if x1_raw > 1.0 or y1_raw > 1.0 or x2_raw > 1.0 or y2_raw > 1.0:
-                        x1_raw, y1_raw, x2_raw, y2_raw = x1_raw / 1000.0, y1_raw / 1000.0, x2_raw / 1000.0, y2_raw / 1000.0
-                    bx = min(x1_raw, x2_raw)
-                    by = min(y1_raw, y2_raw)
-                    bw = max(0.01, abs(x2_raw - x1_raw))
-                    bh = max(0.01, abs(y2_raw - y1_raw))
-                else:
-                    box_w = float(bbox.get("w", bbox.get("width", 100.0)))
-                    box_h = float(bbox.get("h", bbox.get("height", 100.0)))
-                    if x1_raw > 1.0 or y1_raw > 1.0 or box_w > 1.0 or box_h > 1.0:
-                        x1_raw, y1_raw, box_w, box_h = x1_raw / 1000.0, y1_raw / 1000.0, box_w / 1000.0, box_h / 1000.0
-                    bx = x1_raw
-                    by = y1_raw
-                    bw = max(0.01, box_w)
-                    bh = max(0.01, box_h)
+        elif isinstance(box, dict):
+            x1 = float(box.get("x", box.get("x1", box.get("xmin", 0.0))))
+            y1 = float(box.get("y", box.get("y1", box.get("ymin", 0.0))))
+            w = float(box.get("w", box.get("width", 0.1)))
+            h = float(box.get("h", box.get("height", 0.1)))
+            if x1 > 1.0 or y1 > 1.0 or w > 1.0 or h > 1.0:
+                x1, y1, w, h = x1 / 1000.0, y1 / 1000.0, w / 1000.0, h / 1000.0
+            bx, by, bw, bh = x1, y1, max(0.01, w), max(0.01, h)
 
-        # Clamp normalized coordinates to [0.0, 1.0]
         bx = max(0.0, min(0.98, bx))
         by = max(0.0, min(0.98, by))
         bw = max(0.01, min(1.0 - bx, bw))
         bh = max(0.01, min(1.0 - by, bh))
 
-        # Calculate absolute pixel coordinates on canvas
         px1, py1 = int(bx * canvas_w), int(by * canvas_h)
         px2, py2 = int((bx + bw) * canvas_w), int((by + bh) * canvas_h)
 
-        dtype = d.get("type", "worker")
-        severity = d.get("severity", "Moderate")
-        label = d.get("label", "Detection")
+        cat = d.get("category", "person" if any(w in str(d.get("label", "")).lower() for w in ["worker", "person", "ironworker", "man"]) else "hazard")
+        parsed_items.append({
+            "data": d,
+            "box": [px1, py1, px2, py2],
+            "category": cat
+        })
 
-        # Clean concise label tag
-        short_label = label.split("/")[0].split("(")[0].strip()
-        if len(short_label) > 22:
-            short_label = short_label[:20] + "…"
-        tag = f"{short_label} · {severity.upper()}"
+    # Draw boxes & tactical accents
+    for item in parsed_items:
+        d = item["data"]
+        px1, py1, px2, py2 = item["box"]
+        cat = item["category"]
+        sev = d.get("severity", "Critical")
 
-        if severity in ["Critical", "High"] or dtype == "hazard":
-            outline_col = (239, 68, 68, 235)
-            pill_bg = (220, 38, 38, 230)
-            txt_col = (255, 255, 255, 255)
-        elif severity == "OK" or dtype == "ppe":
-            outline_col = (16, 185, 129, 235)
-            pill_bg = (16, 185, 129, 230)
-            txt_col = (255, 255, 255, 255)
-        elif severity == "Unverified":
-            outline_col = (148, 163, 184, 200)
-            pill_bg = (51, 65, 85, 230)
-            txt_col = (255, 255, 255, 255)
+        if cat == "person":
+            if sev in ["Critical", "High", "Moderate"]:
+                outline_col = (245, 158, 11, 240) # Distinct Amber for workers
+                pill_bg = (217, 119, 6, 235)
+                c_fill = (245, 158, 11, 255)
+            elif sev == "Unverified":
+                outline_col = (148, 163, 184, 220) # Slate
+                pill_bg = (71, 85, 105, 235)
+                c_fill = (148, 163, 184, 255)
+            else:
+                outline_col = (16, 185, 129, 240) # Green for compliant worker
+                pill_bg = (16, 185, 129, 235)
+                c_fill = (16, 185, 129, 255)
         else:
-            outline_col = (234, 179, 8, 235)
-            pill_bg = (234, 179, 8, 230)
-            txt_col = (0, 0, 0, 255)
+            if sev in ["Critical", "High"]:
+                outline_col = (239, 68, 68, 240) # Vivid Red for structural hazard
+                pill_bg = (220, 38, 38, 235)
+                c_fill = (239, 68, 68, 255)
+            elif sev == "Moderate":
+                outline_col = (234, 179, 8, 240) # Yellow
+                pill_bg = (234, 179, 8, 235)
+                c_fill = (234, 179, 8, 255)
+            else:
+                outline_col = (16, 185, 129, 240) # Green
+                pill_bg = (16, 185, 129, 235)
+                c_fill = (16, 185, 129, 255)
 
-        # Draw sleek 2px bounding box
-        draw.rectangle([px1, py1, px2, py2], outline=outline_col, width=2)
+        item["outline_col"] = outline_col
+        item["pill_bg"] = pill_bg
 
-        # Draw tactical corner accents
-        c_len = min(12, abs(px2 - px1) // 3, abs(py2 - py1) // 3)
-        if c_len > 3:
-            draw.line([(px1, py1), (px1 + c_len, py1)], fill=outline_col, width=3)
-            draw.line([(px1, py1), (px1, py1 + c_len)], fill=outline_col, width=3)
-            draw.line([(px2, py1), (px2 - c_len, py1)], fill=outline_col, width=3)
-            draw.line([(px2, py1), (px2, py2 - c_len)], fill=outline_col, width=3)
-            draw.line([(px1, py2), (px1 + c_len, py2)], fill=outline_col, width=3)
-            draw.line([(px1, py2), (px1, py2 - c_len)], fill=outline_col, width=3)
-            draw.line([(px2, py2), (px2 - c_len, py2)], fill=outline_col, width=3)
-            draw.line([(px2, py2), (px2, py2 - c_len)], fill=outline_col, width=3)
+        draw.rectangle([px1, py1, px2, py2], outline=outline_col, width=3 if canvas_w >= 1000 else 2)
 
-        tag_w = len(tag) * 7 + 12
-        tag_h = 18
+        c_len = min(16, abs(px2 - px1) // 3, abs(py2 - py1) // 3)
+        if c_len > 4:
+            draw.line([(px1, py1), (px1 + c_len, py1)], fill=c_fill, width=4)
+            draw.line([(px1, py1), (px1, py1 + c_len)], fill=c_fill, width=4)
+            draw.line([(px2, py1), (px2 - c_len, py1)], fill=c_fill, width=4)
+            draw.line([(px2, py1), (px2, py1 + c_len)], fill=c_fill, width=4)
+            draw.line([(px1, py2), (px1 + c_len, py2)], fill=c_fill, width=4)
+            draw.line([(px1, py2), (px1, py2 - c_len)], fill=c_fill, width=4)
+            draw.line([(px2, py2), (px2 - c_len, py2)], fill=c_fill, width=4)
+            draw.line([(px2, py2), (px2, py2 - c_len)], fill=c_fill, width=4)
 
-        # Candidate label positions in priority order
-        candidates = []
-        label_lower = label.lower()
+    # Place labels with obstacle avoidance (prevent covering other workers' bodies)
+    for item in parsed_items:
+        d = item["data"]
+        px1, py1, px2, py2 = item["box"]
+        cat = item["category"]
+        tag = d.get("short_label", d.get("label", "Detection"))
 
-        if dtype == "hazard" or any(k in label_lower for k in ["platform", "scaffold", "plank", "edge", "floor", "perimeter", "opening", "fall"]):
-            # Platforms / floor hazards: place label at bottom of box so worker is never bisected
-            candidates = [
-                [px1, py2 - tag_h - 2, px1 + tag_w, py2 - 2],           # Inside bottom-left
-                [px1, py2 + 2, px1 + tag_w, py2 + tag_h + 2],           # Outside bottom-left
-                [px2 - tag_w, py2 - tag_h - 2, px2, py2 - 2],           # Inside bottom-right
-                [px1, py1 - tag_h - 2, px1 + tag_w, py1 - 2],           # Fallback outside top-left
-            ]
-        elif dtype == "ppe" and any(k in label_lower for k in ["hat", "helmet", "head"]):
-            # Hard hat: place inside hat or top right
-            candidates = [
-                [px1, py1 + 2, px1 + tag_w, py1 + tag_h + 2],           # Inside top-left of hat
-                [px2 - tag_w, py1 + 2, px2, py1 + tag_h + 2],           # Inside top-right of hat
-                [px2 + 4, py1, px2 + tag_w + 4, py1 + tag_h],           # Outside right of hat
-                [px1, py2 + 2, px1 + tag_w, py2 + tag_h + 2],           # Outside bottom of hat
-            ]
-        elif dtype == "ppe" and any(k in label_lower for k in ["vest", "harness", "jacket"]):
-            # Hi-Vis Vest / Harness: inside vest box
-            candidates = [
-                [px1 + 4, py1 + 4, px1 + tag_w + 4, py1 + tag_h + 4],   # Inside top-left
-                [px1 + 4, py2 - tag_h - 4, px1 + tag_w + 4, py2 - 4],   # Inside bottom-left
-                [px2 - tag_w - 4, py1 + 4, px2 - 4, py1 + tag_h + 4],   # Inside top-right
-                [px2 + 4, py1, px2 + tag_w + 4, py1 + tag_h],           # Outside right
-            ]
-        elif dtype == "worker":
-            # Full worker: top-left outside
-            candidates = [
-                [px1, py1 - tag_h - 2, px1 + tag_w, py1 - 2],           # Outside top-left
-                [px1, py1 + 2, px1 + tag_w, py1 + tag_h + 2],           # Inside top-left
-                [px1, py2 + 2, px1 + tag_w, py2 + tag_h + 2],           # Outside bottom-left
-                [px2 - tag_w, py1 - tag_h - 2, px2, py1 - 2],           # Outside top-right
-            ]
+        t_bbox = draw.textbbox((0, 0), tag, font=font)
+        t_w = (t_bbox[2] - t_bbox[0])
+        t_h = (t_bbox[3] - t_bbox[1])
+        tag_w = t_w + 16
+        tag_h = t_h + 10
+
+        pill_bg = item["pill_bg"]
+        txt_col = (255, 255, 255, 255)
+
+        other_boxes = [p["box"] for p in parsed_items if p is not item and p["category"] == "person"]
+
+        if cat == "person":
+            candidates = []
+            if py1 > tag_h + 8:
+                candidates.append([px1, py1 - tag_h - 4, px1 + tag_w, py1 - 4])     # Above head
+                candidates.append([px1 - tag_w - 6, py1, px1 - 6, py1 + tag_h])     # Left side
+                candidates.append([px2 + 6, py1, px2 + tag_w + 6, py1 + tag_h])     # Right side
+                candidates.append([px1, py2 + 4, px1 + tag_w, py2 + tag_h + 4])     # Below feet
+            else:
+                candidates.append([px1 + 4, py1 + 4, px1 + tag_w + 4, py1 + tag_h + 4]) # Inside top
+                candidates.append([px1, py2 + 4, px1 + tag_w, py2 + tag_h + 4])     # Below feet
+                candidates.append([px1 - tag_w - 6, py1, px1 - 6, py1 + tag_h])
         else:
-            # Default fallback candidates
             candidates = [
-                [px1, py1 - tag_h - 2, px1 + tag_w, py1 - 2],           # Outside top
-                [px1, py1 + 2, px1 + tag_w, py1 + tag_h + 2],           # Inside top
-                [px1, py2 - tag_h - 2, px1 + tag_w, py2 - 2],           # Inside bottom
-                [px1, py2 + 2, px1 + tag_w, py2 + tag_h + 2],           # Outside bottom
+                [px1 + 4, py2 - tag_h - 4, px1 + tag_w + 4, py2 - 4],               # Inside bottom
+                [px1, py2 + 4, px1 + tag_w, py2 + tag_h + 4],                       # Outside bottom
+                [px1 + 4, py1 + 4, px1 + tag_w + 4, py1 + tag_h + 4],               # Inside top
             ]
 
-        # Pick the first candidate that doesn't overlap any previously occupied label
         best_rect = None
         for cand in candidates:
-            c_x1 = max(2, min(canvas_w - tag_w - 4, cand[0]))
-            c_y1 = max(2, min(canvas_h - tag_h - 4, cand[1]))
+            c_x1 = max(4, min(canvas_w - tag_w - 4, cand[0]))
+            c_y1 = max(4, min(canvas_h - tag_h - 4, cand[1]))
             c_rect = [c_x1, c_y1, c_x1 + tag_w, c_y1 + tag_h]
-            
-            has_collision = False
-            for occ in occupied_rects:
-                if overlaps(c_rect, occ):
-                    has_collision = True
-                    break
-            if not has_collision:
+
+            collides_label = any(overlaps(c_rect, occ) for occ in occupied_labels)
+            collides_worker = any(overlaps(c_rect, ob) for ob in other_boxes)
+
+            if not collides_label and not collides_worker:
                 best_rect = c_rect
                 break
 
-        # If all candidate positions collide, shift downward until free
+        if not best_rect:
+            for cand in candidates:
+                c_x1 = max(4, min(canvas_w - tag_w - 4, cand[0]))
+                c_y1 = max(4, min(canvas_h - tag_h - 4, cand[1]))
+                c_rect = [c_x1, c_y1, c_x1 + tag_w, c_y1 + tag_h]
+                if not any(overlaps(c_rect, occ) for occ in occupied_labels):
+                    best_rect = c_rect
+                    break
+
         if not best_rect:
             base = candidates[0]
-            c_x1 = max(2, min(canvas_w - tag_w - 4, base[0]))
-            c_y1 = max(2, min(canvas_h - tag_h - 4, base[1]))
-            while any(overlaps([c_x1, c_y1, c_x1 + tag_w, c_y1 + tag_h], occ) for occ in occupied_rects) and c_y1 < canvas_h - tag_h - 10:
+            c_x1 = max(4, min(canvas_w - tag_w - 4, base[0]))
+            c_y1 = max(4, min(canvas_h - tag_h - 4, base[1]))
+            while any(overlaps([c_x1, c_y1, c_x1 + tag_w, c_y1 + tag_h], occ) for occ in occupied_labels) and c_y1 < canvas_h - tag_h - 10:
                 c_y1 += tag_h + 4
             best_rect = [c_x1, c_y1, c_x1 + tag_w, c_y1 + tag_h]
 
-        occupied_rects.append(best_rect)
+        occupied_labels.append(best_rect)
 
-        # Draw label pill
-        draw.rectangle(best_rect, fill=pill_bg)
-        draw.text((best_rect[0] + 5, best_rect[1] + 2), tag, fill=txt_col)
+        try:
+            draw.rounded_rectangle(best_rect, radius=4, fill=pill_bg)
+        except Exception:
+            draw.rectangle(best_rect, fill=pill_bg)
+
+        draw.text((best_rect[0] + 8, best_rect[1] + 3), tag, font=font, fill=txt_col)
 
     return Image.alpha_composite(img, overlay).convert("RGB")
 
@@ -502,42 +799,50 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 SAFETY_SYSTEM_PROMPT = """
 You are a licensed Senior OSHA Construction Safety Auditor enforcing 29 CFR 1926 standards.
-CRITICAL SAFETY SPECIFICATIONS:
-1. An active ironworker near an unprotected leading edge without an anchored personal fall arrest lanyard is a CRITICAL Fall Hazard under OSHA 1926.501(b)(1).
-2. Hardhats and high-visibility vests satisfy OSHA 1926.100 (PPE OK). Do NOT conflate PPE compliance with Fall Protection.
-3. Missing perimeter guardrails or scaffold plank deflection must be classified under OSHA 1926.451(g)(1) or 1926.502(b).
-4. Distant workers (>60ft) where harness tethering cannot be visually verified must be labeled 'Unverified'.
-5. Ground your hazard scoring mathematically: If a Critical leading edge fall hazard exists, hazard_score must be between 80 and 95, and fall_risk_pct must be between 80 and 95%.
+CRITICAL REGULATORY TAXONOMY:
+1. Subpart L (§ 1926.451) governs scaffolding platforms. Per § 1926.500(a)(2)(i), scaffolds are EXCLUDED from Subpart M.
+2. Subpart R (§ 1926.760) governs steel erection activities. Per § 1926.500(a)(2)(iii), steel erection is EXCLUDED from Subpart M.
+3. Subpart M (§ 1926.501) applies to general walking/working leading edges and floor openings.
+4. Subpart E (§ 1926.100 / § 1926.200) governs Head Protection (Hardhats) and High-Visibility Apparel.
+
+TAXONOMY KEYS TO RETURN:
+- "scaffold_no_fall_arrest": Worker on elevated scaffold with no visible lanyard/tie-off.
+- "scaffold_missing_guardrail": Scaffold platform lacking standard toprail/midrail per 1926.451(g).
+- "scaffold_plank_defect": Scaffold platform incomplete or missing secured planks per 1926.451(b).
+- "steel_erection_fall_hazard": Worker on structural steel at elevation with no visible tie-off per 1926.760.
+- "leading_edge_fall_hazard": Worker within 6 ft of building floor/slab leading edge per 1926.501.
+- "ppe_no_hardhat": Worker clearly without hardhat in active hazard zone per 1926.100(a).
+- "ppe_no_hivis": Worker clearly without high-vis safety vest per 1926.200(g).
+- "ppe_unverified": Headwear or high-vis cannot be optical-definitively confirmed at resolution/angle.
+- "fall_arrest_unverified": Distant worker where tie-off connection cannot be optical-definitively confirmed.
+- "worker_compliant": Worker with verified hardhat, high-vis, and secure tie-off or safe ground level.
+- "safe_condition": Compliant scaffold or non-hazardous work area.
+
+TRUTH-FIRST AND OVERCLAIM PRINCIPLES:
+1. When headwear or high-vis is covered by hood, balaclava, dark clothing, or low resolution, NEVER claim 100% compliance. Return ppe_status="not_verifiable" or "non_compliant".
+2. NEVER say "worker lacks fall arrest system". ALWAYS say "without visible personal fall arrest connection" or "no visible tie-off" (a harness could be hidden by angle).
+3. If image is non-construction (office, bedroom, food, park), set scene_type="non_construction", hazard_score=0, fall_risk_pct=0, and detections=[].
 """
 
 SAFETY_PROMPT = """
 You are an OSHA Construction Safety Auditor specialized in 29 CFR 1926 standards.
-Analyze the provided construction site image.
-Locate all active workers, PPE items (hard hats, vests), and structural hazards (leading edges, guardrails).
+Analyze the provided image.
 Return strictly valid JSON:
 {
+  "scene_type": "construction_active" | "construction_empty" | "non_construction",
+  "workers_detected": integer,
+  "ppe_status": "compliant" | "non_compliant" | "not_verifiable" | "no_workers",
   "hazard_score": integer (0-100),
   "fall_risk_pct": integer (0-100),
-  "workers_detected": integer,
-  "ppe_compliance_pct": integer (0-100),
-  "hazards_count": integer,
   "detections": [
     {
-      "label": string,
-      "type": "worker" | "hazard" | "ppe",
+      "category": "person" | "hazard",
+      "hazard_key": "scaffold_no_fall_arrest" | "scaffold_missing_guardrail" | "scaffold_plank_defect" | "steel_erection_fall_hazard" | "leading_edge_fall_hazard" | "ppe_no_hardhat" | "ppe_no_hivis" | "ppe_unverified" | "fall_arrest_unverified" | "worker_compliant" | "safe_condition",
       "severity": "Critical" | "High" | "Moderate" | "Low" | "OK" | "Unverified",
-      "description": string (specific hazard, infraction observation, or PPE item status),
-      "osha_standard": string (e.g. OSHA 1926.501, OSHA 1926.451, OSHA 1926.100),
+      "short_label": string (e.g. "Worker 1 · No tie-off visible", "Worker 2 · No tie-off visible", "Scaffold · Unguarded edge", "Worker · PPE Compliant"),
+      "observation": string (objective visual observation using "no visible tie-off" / "without visible lanyard" phrasing),
       "bbox": { "x": float, "y": float, "w": float, "h": float }
     }
-  ],
-  "infractions": [
-    { "severity": "CRITICAL" | "MODERATE" | "LOW", "osha_standard": string, "location": string, "description": string }
-  ],
-  "actions": [
-    { "step": "01", "type": "IMMEDIATE ACTION", "text": string },
-    { "step": "02", "type": "ENGINEERING FIX", "text": string },
-    { "step": "03", "type": "DOCUMENTATION", "text": string }
   ]
 }
 """
@@ -602,7 +907,7 @@ with tab1:
             pasted_safety = get_clipboard_image(key="safety_paste_primary", label="📋 Paste Image from Clipboard (Ctrl+V)")
             if pasted_safety:
                 st.session_state["safety_pasted_img"] = pasted_safety
-                st.session_state["live_safety_data"] = None  # Reset analysis for new image
+                st.session_state["unified_safety_audit"] = None  # Reset analysis for new image
                 st.success("✅ Image successfully pasted from clipboard!")
             if "safety_pasted_img" in st.session_state and st.session_state["safety_pasted_img"]:
                 selected_img = st.session_state["safety_pasted_img"]
@@ -613,6 +918,9 @@ with tab1:
             with col_u1:
                 uploaded_safety = st.file_uploader("Upload Site Photo (JPG, PNG)", type=["jpg", "jpeg", "png"], key="safety_upload")
                 if uploaded_safety:
+                    if st.session_state.get("last_uploaded_safety_name") != uploaded_safety.name:
+                        st.session_state["last_uploaded_safety_name"] = uploaded_safety.name
+                        st.session_state["unified_safety_audit"] = None
                     selected_img = Image.open(uploaded_safety)
             with col_u2:
                 st.caption("Or paste directly:")
@@ -620,209 +928,175 @@ with tab1:
                 if pasted_safety_alt:
                     selected_img = pasted_safety_alt
                     st.session_state["safety_pasted_img"] = pasted_safety_alt
-                    st.session_state["live_safety_data"] = None
+                    st.session_state["unified_safety_audit"] = None
                     st.success("✅ Clipboard image loaded!")
             if not selected_img and "safety_pasted_img" in st.session_state:
                 selected_img = st.session_state["safety_pasted_img"]
 
-        # Persistent state for live analysis
-        if "live_safety_data" not in st.session_state:
-            st.session_state["live_safety_data"] = None
+        # Track input source changes to avoid stale analyses
+        if st.session_state.get("active_img_source") != img_source:
+            st.session_state["active_img_source"] = img_source
+            st.session_state["unified_safety_audit"] = None
+
+        # Persistent state for live unified analysis
+        if "unified_safety_audit" not in st.session_state:
+            st.session_state["unified_safety_audit"] = None
 
         if selected_img and active_key and st.button("⚡ Run Live Gemini Vision Audit", type="primary"):
             with st.spinner(f"Executing computer vision safety inspection with {active_model_name}..."):
                 raw_data = call_gemini_multimodal(selected_img, SAFETY_PROMPT, system_instruction=SAFETY_SYSTEM_PROMPT)
-                st.session_state["live_safety_data"] = calibrate_safety_response(raw_data)
+                st.session_state["unified_safety_audit"] = build_unified_audit_findings(raw_data)
 
-        live_safety_data = st.session_state.get("live_safety_data")
+        # Retrieve authoritative audit findings (fallback to calibrated sample only when preloaded sample is selected)
+        if st.session_state.get("unified_safety_audit"):
+            audit = st.session_state["unified_safety_audit"]
+        elif img_source == "Use Preloaded Scaffolding Elevation Sample":
+            audit = build_unified_audit_findings(None)
+        else:
+            audit = None
 
         if selected_img:
-            if live_safety_data and "detections" in live_safety_data:
-                annotated = draw_dynamic_annotations(selected_img, live_safety_data.get("detections", []))
-                st.image(annotated, caption="Live Computer Vision Overlay • OSHA 1926 Spatial Telemetry", use_container_width=True)
-                w_count = live_safety_data.get("workers_detected", len([d for d in live_safety_data.get("detections", []) if d.get("type") == "worker"]))
-                ppe_pct = live_safety_data.get("ppe_compliance_pct", 100)
-                h_count = live_safety_data.get("hazards_count", len([d for d in live_safety_data.get("detections", []) if d.get("severity") in ["Critical", "High", "Moderate"]]))
-            else:
-                annotated = draw_safety_annotations(selected_img)
-                st.image(annotated, caption="Computer Vision Detection Overlay • OSHA 1926 Spatial Telemetry", use_container_width=True)
-                w_count = 2
-                ppe_pct = 100
-                h_count = 2
-            
-            # Stats Strip
-            st.markdown(f"""
-            <div style="background: #090e1a; border: 1px solid #1c263c; padding: 10px 16px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-top: 4px;">
-                <div><span style="color: #64748b;">Workers Detected:</span> <strong style="color: #fff; background: #131d31; padding: 2px 6px; border-radius: 4px;">{w_count} Active</strong></div>
-                <div><span style="color: #64748b;">PPE Compliance:</span> <strong style="color: #34d399; background: rgba(16,185,129,0.15); padding: 2px 8px; border-radius: 4px;">{ppe_pct}% Pass</strong> <span style="color: #94a3b8; font-size: 11px;">(Strict OSHA 1926.100)</span></div>
-                <div><span style="color: #64748b;">Hazards Found:</span> <strong style="color: #f87171; background: rgba(239,68,68,0.15); padding: 2px 6px; border-radius: 4px;">{h_count} Detected</strong></div>
-            </div>
-            """, unsafe_allow_html=True)
-            st.caption("💡 *Engineering Protocol: Worker PPE conforms with OSHA 1926.100. Fall protection near leading edge is governed strictly under OSHA 1926.501(b)(1).*")
-
-            # --- DETAILED HAZARDS & DETECTED OBJECTS BREAKDOWN ---
-            st.markdown("---")
-            st.markdown("##### 📋 Detected Hazards & Visual Findings Breakdown")
-
-            dets = live_safety_data.get("detections", []) if (live_safety_data and "detections" in live_safety_data) else [
-                {
-                    "label": "Primary Ironworker (Zone B)",
-                    "type": "worker",
-                    "severity": "Critical",
-                    "osha_standard": "OSHA 1926.501(b)(1)",
-                    "description": "Ironworker positioned within 18 inches of leading edge at 32.4 ft without active fall arrest tie-off."
-                },
-                {
-                    "label": "Scaffolding Plank Gap / Perimeter Defect",
-                    "type": "hazard",
-                    "severity": "Moderate",
-                    "osha_standard": "OSHA 1926.451(g)(1)",
-                    "description": "Perimeter midrail missing between vertical standards. Missing outward-facing 3.5\" toeboard on cantilever."
-                },
-                {
-                    "label": "Hard Hat & High-Vis Safety Vest",
-                    "type": "ppe",
-                    "severity": "OK",
-                    "osha_standard": "OSHA 1926.100",
-                    "description": "Certified ANSI Z89.1 Type 1 hardhat and high-visibility reflective vest properly donned."
-                },
-                {
-                    "label": "Secondary Worker (Deck Background)",
-                    "type": "worker",
-                    "severity": "Unverified",
-                    "osha_standard": "Distance >60ft",
-                    "description": "Distant worker in safety gear visible on rear deck. Beyond high-resolution optical verification threshold."
-                }
-            ]
-
-            for d in dets:
-                dtype = d.get("type", "hazard")
-                sev = d.get("severity", "Moderate")
-                lbl = d.get("label", "Detected Item")
-                desc = d.get("description", "Identified by OSHA computer vision analysis.")
-                std = d.get("osha_standard", "")
-
-                if sev in ["Critical", "High"] or dtype == "hazard":
-                    card_border = "#ef4444"
-                    badge_html = f"<span class='badge-critical'>{sev.upper()}</span>"
-                    icon = "🚨"
-                elif sev == "OK" or dtype == "ppe":
-                    card_border = "#10b981"
-                    badge_html = f"<span class='badge-pass'>{sev.upper()}</span>"
-                    icon = "✅"
-                elif sev == "Unverified":
-                    card_border = "#64748b"
-                    badge_html = f"<span style='background:rgba(100,116,139,0.2);color:#94a3b8;border:1px solid #475569;padding:2px 6px;border-radius:4px;font-size:10px;font-family:monospace;'>{sev.upper()}</span>"
-                    icon = "ℹ️"
+            if audit:
+                if audit.get("scene_type") == "non_construction":
+                    st.image(selected_img, caption="Scene Image (Non-Construction Detected • No OSHA Overlay)", use_container_width=True)
                 else:
-                    card_border = "#eab308"
-                    badge_html = f"<span class='badge-warn'>{sev.upper()}</span>"
-                    icon = "⚠️"
-
-                std_tag = f"<span style='color:#38bdf8;font-family:monospace;font-size:11px;font-weight:bold;margin-left:8px;'>[{std}]</span>" if std else ""
-
+                    annotated = draw_dynamic_annotations(selected_img, audit.get("all_detections", []))
+                    st.image(annotated, caption="Live Computer Vision Overlay • OSHA 1926 Spatial Telemetry", use_container_width=True)
+                
+                # Stats Strip
+                w_count = audit.get("workers_detected", 0)
+                ppe_text = audit.get("ppe_status_text", "Not Verifiable")
+                ppe_sub = audit.get("ppe_sub_text", "")
+                ppe_col = audit.get("ppe_color", "#f59e0b")
+                hazards_list = audit.get("hazards", [])
+                h_count = len(hazards_list)
+                
                 st.markdown(f"""
-                <div style="background: #090e1a; border: 1px solid #1c263c; border-left: 4px solid {card_border}; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px;">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
-                        <div>
-                            <span style="font-size:13px; font-weight:bold; color:#f8fafc;">{icon} {lbl}</span>
-                            {std_tag}
-                        </div>
-                        {badge_html}
-                    </div>
-                    <p style="font-size:11px; color:#cbd5e1; margin:0; line-height:1.4;">{desc}</p>
+                <div style="background: #090e1a; border: 1px solid #1c263c; padding: 10px 16px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-top: 4px;">
+                    <div><span style="color: #64748b;">Workers Detected:</span> <strong style="color: #fff; background: #131d31; padding: 2px 6px; border-radius: 4px;">{w_count} Active</strong></div>
+                    <div><span style="color: #64748b;">PPE Compliance:</span> <strong style="color: {ppe_col}; background: rgba(245,158,11,0.15); padding: 2px 8px; border-radius: 4px;">{ppe_text}</strong> <span style="color: #94a3b8; font-size: 11px;">{ppe_sub}</span></div>
+                    <div><span style="color: #64748b;">Hazards Found:</span> <strong style="color: #f87171; background: rgba(239,68,68,0.15); padding: 2px 6px; border-radius: 4px;">{h_count} Detected</strong></div>
                 </div>
                 """, unsafe_allow_html=True)
+                
+                if audit.get("scene_type") == "non_construction":
+                    st.caption("💡 *Scene Classified: Non-Construction Environment. No OSHA 29 CFR 1926 standards triggered.*")
+                else:
+                    st.caption("💡 *Engineering Protocol: Scaffold fall protection governed strictly under OSHA Subpart L (§ 1926.451). Scaffolds excluded from Subpart M per § 1926.500(a)(2)(i). Head protection governed under Subpart E (§ 1926.100).*")
+                
+                # --- DETAILED HAZARDS & DETECTED OBJECTS BREAKDOWN ---
+                st.markdown("---")
+                st.markdown("##### 📋 Detected Hazards & Visual Findings Breakdown")
+                
+                if len(hazards_list) == 0:
+                    if audit.get("scene_type") == "non_construction":
+                        st.info("ℹ️ Non-construction scene detected. No safety hazards or violations found.")
+                    else:
+                        st.markdown("""
+                        <div style="background: #090e1a; border: 1px solid #1c263c; border-left: 4px solid #10b981; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px;">
+                            <span style="font-size:13px; font-weight:bold; color:#f8fafc;">✅ No Immediate Hazards Detected</span>
+                            <p style="font-size:11px; color:#94a3b8; margin:4px 0 0 0;">Visual field conforms with monitored OSHA 1926 standards.</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+                else:
+                    for h in hazards_list:
+                        sev = h.get("severity", "Critical")
+                        card_border = "#ef4444" if sev in ["Critical", "High"] else "#eab308"
+                        badge_class = "badge-critical" if sev in ["Critical", "High"] else "badge-warn"
+                        icon = "🚨" if sev in ["Critical", "High"] else "⚠️"
+                        std_str = h.get("osha_standard", "OSHA 1926")
+                        
+                        st.markdown(f"""
+                        <div style="background: #090e1a; border: 1px solid #1c263c; border-left: 4px solid {card_border}; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px;">
+                            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 4px;">
+                                <div>
+                                    <span style="font-size:13px; font-weight:bold; color:#f8fafc;">{icon} {h.get('short_label', h.get('title', 'Hazard'))}</span>
+                                    <span style="color:#38bdf8;font-family:monospace;font-size:11px;font-weight:bold;margin-left:8px;">[{std_str}]</span>
+                                </div>
+                                <span class="{badge_class}">{sev.upper()}</span>
+                            </div>
+                            <p style="font-size:11px; color:#cbd5e1; margin:0; line-height:1.4;">{h.get('observation', '')}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+            else:
+                st.image(selected_img, caption="Uploaded Site Photo (Ready for Live Vision Inspection)", use_container_width=True)
+                st.info("👆 Click **'⚡ Run Live Gemini Vision Audit'** above to detect workers, evaluate PPE compliance, and map OSHA 1926 hazards.")
 
     with col2:
         st.markdown("#### ⚠️ OSHA Risk Assessment")
         
+        hazard_val = audit.get("hazard_score", 0) if audit else 0
+        fall_val = audit.get("fall_risk_pct", 0) if audit else 0
+        
         m1, m2 = st.columns(2)
-        hazard_val = live_safety_data.get("hazard_score", 84) if live_safety_data else 84
-        fall_val = live_safety_data.get("fall_risk_pct", 88) if live_safety_data else 88
         m1.metric("Total Hazard Score", f"{hazard_val} / 100", delta="Critical" if hazard_val > 70 else "Normal", delta_color="inverse")
         m2.metric("Fall Risk Index", f"{fall_val}%", delta="High Severity" if fall_val > 50 else "Acceptable", delta_color="inverse")
 
-        if live_safety_data and "infractions" in live_safety_data and len(live_safety_data.get("infractions", [])) > 0:
-            st.markdown("**Live OSHA Infraction Log:**")
-            for inf in live_safety_data.get("infractions", []):
-                if isinstance(inf, dict):
-                    sev_tag = inf.get("severity", "WARN")
-                    std_tag = inf.get("osha_standard", "OSHA 1926")
-                    loc_tag = inf.get("location", "Site Perimeter")
-                    desc_tag = inf.get("description", "")
-                else:
-                    sev_tag = "CRITICAL" if any(k in str(inf).lower() for k in ["fall", "edge", "tie-off", "lanyard", "scaffold"]) else "WARN"
-                    std_tag = "OSHA 1926.501" if "fall" in str(inf).lower() else "OSHA 1926.451"
-                    loc_tag = "Scaffold Elevation"
-                    desc_tag = str(inf)
-                badge_class = "badge-critical" if str(sev_tag).upper() in ["CRITICAL", "HIGH"] else "badge-warn"
-                st.markdown(f"- <span class='{badge_class}'>{str(sev_tag).upper()}</span> **{std_tag}** — *{loc_tag}*<br>&nbsp;&nbsp;{desc_tag}", unsafe_allow_html=True)
+        st.markdown("**Live OSHA Infraction Log:**")
+        hazards_list = audit.get("hazards", []) if audit else []
+        if len(hazards_list) > 0:
+            for h in hazards_list:
+                sev = h.get("severity", "Critical")
+                b_class = "badge-critical" if sev in ["Critical", "High"] else "badge-warn"
+                std_str = h.get("osha_standard", "OSHA 1926")
+                sub_str = h.get("subpart", "OSHA 1926")
+                obs_str = h.get("observation", "")
+                st.markdown(f"- <span class='{b_class}'>{sev.upper()}</span> **{std_str}** — *{sub_str}*<br>&nbsp;&nbsp;{obs_str}", unsafe_allow_html=True)
         else:
-            st.markdown("""
-            **OSHA Infraction Analysis Log:**
-            - <span class='badge-critical'>CRITICAL</span> **OSHA 1926.501(b)(1)** — *Zone B • Level 4*  
-              Worker positioned within 18 inches of leading edge at 32.4 ft without active fall arrest tie-off.
-            - <span class='badge-warn'>MODERATE</span> **OSHA 1926.451(g)(1)** — *Bay 4C Standard*  
-              Perimeter midrail missing between vertical standards. Missing outward-facing 3.5" toeboard.
-            """, unsafe_allow_html=True)
+            if audit and audit.get("scene_type") == "non_construction":
+                st.markdown("✅ *Non-construction scene: 0 OSHA infractions.*")
+            elif audit:
+                st.markdown("✅ *0 active OSHA infractions detected.*")
+            else:
+                st.caption("Awaiting live vision inspection...")
 
         st.markdown("#### 🚨 Mandatory Corrective Protocol")
-        if live_safety_data and "actions" in live_safety_data and len(live_safety_data.get("actions", [])) > 0:
-            for idx, act in enumerate(live_safety_data.get("actions", [])):
-                if isinstance(act, dict):
-                    step = act.get("step", f"{idx+1:02d}")
-                    act_type = act.get("type", "ACTION")
-                    act_text = act.get("text", "")
-                else:
-                    step = f"{idx+1:02d}"
-                    act_type = "ACTION"
-                    act_text = str(act)
-                st.markdown(f"**{step} [{act_type}]:** {act_text}")
+        actions_list = audit.get("actions", []) if audit else []
+        if len(actions_list) > 0:
+            for idx, act in enumerate(actions_list):
+                st.markdown(f"**{idx+1:02d} [ACTION]:** {act}")
         else:
-            st.markdown("""
-            1. **Immediate Action:** Halt ironwork on Cantilever B-4. Direct worker to connect dual self-retracting lanyard to rated horizontal lifeline immediately.
-            2. **Engineering Fix:** Direct scaffold contractor to reinstall 42" top-rail, 21" mid-rail, and 3.5" toe-board on Bay 4C prior to resuming concrete work.
-            3. **Documentation:** Log formal non-conformance report and require toolbox talk sign-off before next shift.
-            """)
+            if audit:
+                st.markdown("No corrective safety actions required.")
+            else:
+                st.caption("Awaiting live vision inspection...")
 
         # --- ONE-CLICK COPY REPORT TO CLIPBOARD ---
         rep_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        rep_hz_score = live_safety_data.get('hazard_score', 84) if live_safety_data else 84
-        rep_fall_risk = live_safety_data.get('fall_risk_pct', 88) if live_safety_data else 88
+        w_cnt = audit.get("workers_detected", 0) if audit else 0
+        p_txt = f"{audit.get('ppe_status_text', 'N/A')} {audit.get('ppe_sub_text', '')}" if audit else "N/A"
         
         report_md = f"""# OSHA 1926 Safety & Fall Protection Inspection Report
 - Date/Timestamp: {rep_date}
-- Governing Engineering Standards: OSHA 1926.501 (Fall Protection), OSHA 1926.100 (PPE), OSHA 1926.451 (Scaffolding)
-- Total Hazard Risk Score: {rep_hz_score} / 100
-- Fall Risk Index: {rep_fall_risk}%
-- Workers Detected: {w_count} Active
-- PPE Compliance: {ppe_pct}% (Strict OSHA 1926.100)
+- Governing Engineering Standards: OSHA 1926.451 (Scaffolds), OSHA 1926.760 (Steel Erection), OSHA 1926.501 (Fall Protection), OSHA 1926.100 (PPE)
+- Total Hazard Risk Score: {hazard_val} / 100
+- Fall Risk Index: {fall_val}%
+- Workers Detected: {w_cnt} Active
+- PPE Compliance: {p_txt}
+- Identified Hazards: {len(hazards_list)} Confirmed
 
 ## Detected Visual Infractions & Telemetry
 """
-        if live_safety_data and "detections" in live_safety_data:
-            for d in live_safety_data.get("detections", []):
-                report_md += f"- [{d.get('severity', 'Notice').upper()}] {d.get('label', 'Detection')} ({d.get('osha_standard', 'OSHA Standard')}): {d.get('description', '')}\n"
+        if len(hazards_list) > 0:
+            for h in hazards_list:
+                report_md += f"- [{h.get('severity', 'Notice').upper()}] {h.get('osha_standard', 'OSHA Standard')} — {h.get('short_label', h.get('title', 'Hazard'))}: {h.get('observation', '')}\n"
         else:
-            report_md += "- [CRITICAL] OSHA 1926.501(b)(1) - Zone B • Level 4: Worker positioned within 18 inches of leading edge without active fall arrest tie-off.\n"
-            report_md += "- [MODERATE] OSHA 1926.451(g)(1) - Bay 4C Standard: Perimeter midrail missing between vertical standards. Missing outward-facing 3.5\" toeboard.\n"
+            report_md += "- No active safety infractions identified in this visual field.\n"
 
         report_md += "\n## Mandatory Corrective Protocols\n"
-        if live_safety_data and "actions" in live_safety_data and len(live_safety_data.get("actions", [])) > 0:
-            for idx, act in enumerate(live_safety_data.get("actions", [])):
-                if isinstance(act, dict):
-                    report_md += f"{act.get('step', str(idx+1))}. [{act.get('type', 'ACTION')}]: {act.get('text', '')}\n"
-                else:
-                    report_md += f"{idx+1}. {act}\n"
+        if len(actions_list) > 0:
+            for idx, act in enumerate(actions_list):
+                report_md += f"{idx+1:02d}. {act}\n"
         else:
-            report_md += "1. Immediate Action: Halt ironwork on Cantilever B-4. Direct worker to connect dual self-retracting lanyard to rated horizontal lifeline immediately.\n"
-            report_md += "2. Engineering Fix: Direct scaffold contractor to reinstall 42\" top-rail, 21\" mid-rail, and 3.5\" toe-board on Bay 4C prior to resuming concrete work.\n"
-            report_md += "3. Documentation: Log formal non-conformance report and require toolbox talk sign-off before next shift.\n"
+            report_md += "1. Continue routine site safety oversight and daily housekeeping.\n"
+
+        report_md += "\n---\n⚠️ AI-assisted screening; verify with a competent person.\n"
 
         with st.expander("📋 One-Click Copy: Formatted OSHA Report (Markdown)", expanded=False):
             st.caption("Click the copy icon in the upper-right corner of the code block to copy the full audit report to your clipboard:")
             st.code(report_md, language="markdown")
+
+        st.caption("⚠️ *AI-assisted screening; verify with a competent person.*")
 
 # ==========================================
 # TAB 2: CRACK DIAGNOSTICS & ACI 318
