@@ -20,8 +20,6 @@ st.set_page_config(
 # --- MODERN TACTICAL DARK CSS & CLIPBOARD ENABLER ---
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200');
-
     /* Enforce universal text selection and copy across all elements */
     body, html, .stApp, .main, p, span, div, strong, em, b, i, h1, h2, h3, h4, h5, h6, 
     code, pre, blockquote, table, td, th, tr, li, ol, ul,
@@ -33,7 +31,7 @@ st.markdown("""
         user-select: text !important;
     }
     
-    /* Universal suppression of literal ligature text for st.expander in all Streamlit versions */
+    /* Clean fallback styling for details/summary without font dependencies */
     details[data-testid="stExpander"] summary span:first-child,
     details[data-testid="stExpander"] summary [class*="Icon"],
     details[data-testid="stExpander"] summary [class*="icon"],
@@ -82,27 +80,6 @@ st.markdown("""
     .stat-val { font-size: 1.5rem; font-weight: 800; color: #f8fafc; font-family: monospace; }
 </style>
 """, unsafe_allow_html=True)
-
-# Active background DOM scrubber ensuring no literal expander ligature text ever leaks
-components.html("""
-<script>
-function scrubLigatures() {
-    try {
-        const doc = window.parent.document;
-        doc.querySelectorAll('details[data-testid="stExpander"] summary, [data-testid="stExpander"]').forEach(el => {
-            const walker = doc.createTreeWalker(el, NodeFilter.SHOW_TEXT, null, false);
-            let n;
-            while (n = walker.nextNode()) {
-                if (n.nodeValue && n.nodeValue.includes('keyboard_arrow_right')) {
-                    n.nodeValue = n.nodeValue.replace(/keyboard_arrow_right/g, '');
-                }
-            }
-        });
-    } catch(e) {}
-}
-setInterval(scrubLigatures, 150);
-</script>
-""", height=0, width=0)
 
 import base64
 

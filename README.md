@@ -67,7 +67,7 @@ The **Multimodal Construction Intelligence Platform** assists site teams through
 ```
 multimodal-construction-platform/
 ├── app.py                   # Streamlit live application (interactive unified console)
-├── sample_scaffold.jpg      # Synthetic benchmarking photograph for scaffolding safety evaluation
+├── sample_scaffold.jpg      # Field reference benchmark photograph of elevated scaffolding for safety auditing
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/          # RESTful routers (safety, crack, planning, valuation, daily-log, weather, chat, samples)
@@ -114,14 +114,14 @@ multimodal-construction-platform/
 | **Epic 2** | Activity 2.2: Crack Detection Logic | `backend/app/services/crack_service.py`, `app.py` Tab 2 | Tested (ACI 318 / 224R) |
 | **Epic 3** | Activity 3.1: Construction Planning | `backend/app/services/planning_service.py`, `app.py` Tab 3 | Tested (CPM / WBS) |
 | **Epic 3** | Activity 3.2: Real Estate Valuation | `backend/app/services/valuation_service.py`, `app.py` Tab 3 | Tested (Cap Rate & Yield) |
-| **Epic 4** | Activity 4.1: Multimodal AI Integration | `gemini-3.5-flash` / `gemini-3.8-flash` / `gemini-3.5-flash-lite` | Live + Calibrated Fallback |
+| **Epic 4** | Activity 4.1: Multimodal AI Integration | `gemini-2.5-flash` / `gemini-2.5-flash-lite` / `gemini-3.5-flash` | Live + Calibrated Fallback |
 | **Epic 4** | Activity 4.2: Structured Data Contracts | `backend/app/schemas/`, `OSHA_HAZARD_REGISTRY` | Strict Pydantic & Canonical Registry |
 | **Epic 4** | Activity 4.3: Context-Aware Reasoning | OSHA 1926 & ACI 318 Domain Heuristics | NMS Deduplication & Edge Guardrails |
 | **Epic 5** | Activity 5.1: Construction Chatbot | `backend/app/services/chat_service.py`, `app.py` Tab 5 | Interactive Code Assistant |
 | **Epic 5** | Activity 5.2: Daily Site Assistant | `backend/app/services/daily_log_service.py`, `app.py` Tab 4 | Automated Punch List |
 | **Epic 5** | Activity 5.3: Weather Risk Advisory | `backend/app/services/weather_service.py`, `app.py` Tab 4 | Meteorological Trade Matrix |
 | **Epic 6** | Activity 6.1: Interface & End-to-End | Streamlit (`app.py`) + React 18 / Vite Frontend | Responsive & Deployed |
-| **Epic 6** | Activity 6.2: System Validation | `backend/tests/` (14 automated tests) | **14 / 14 Passed (100%)** |
+| **Epic 6** | Activity 6.2: System Validation | `backend/tests/` (15 automated tests) | **15 / 15 Passed (100%)** |
 | **Epic 6** | Activity 6.3: Deployment Readiness | Streamlit Cloud + Docker Compose | **Live Online** |
 
 ---
@@ -270,10 +270,11 @@ The **Multimodal Construction Intelligence Platform** is an **AI-assisted decisi
 4. **Structural Forensics & Physical NDT Requirements**:
    - Concrete crack classifications (ACI 318-19 / ACI 224R) represent non-invasive visual surface triage.
    - Subsurface void propagation, steel reinforcement yielding, or rebar corrosion must be verified via physical non-destructive testing (ultrasonic pulse velocity, ground-penetrating radar, or core compression tests) under the direction of a licensed Professional Engineer (PE / SE).
-5. **Deterministic Scoring & Reproducibility**:
+5. **Deterministic Scoring & Baseline Operational Risk**:
    - Risk indices and hazard scores are computed using fixed, deterministic civil engineering formulas with model temperature set to `0.0`, ensuring identical visual inputs generate reproducible audit metrics.
+   - **Baseline Risk on Compliant Sites (12/100)**: An active construction site with active workers is never rated 0/100 hazard risk, even when PPE and tie-offs are 100% compliant. Industrial construction environments carry intrinsic baseline operational hazards (dynamic equipment, overhead material handling, walking-working surface transitions per OSHA General Duty Clause 29 U.S.C. § 654(a)(1)). A score of 0/100 is strictly reserved for non-construction scenes (e.g., offices) or completely unoccupied, empty structures.
 6. **Sample Image Rights & Attribution**:
-   - `sample_scaffold.jpg` is a synthetic high-resolution benchmark image created for construction safety computer vision evaluation.
+   - `sample_scaffold.jpg` is a high-resolution field reference benchmark photograph of workers on an elevated scaffolding platform used for deterministic safety auditing and computer vision evaluation.
 
 ---
 
