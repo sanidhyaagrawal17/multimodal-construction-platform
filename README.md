@@ -1,6 +1,6 @@
 # AI-Powered Multimodal Construction Intelligence Platform
 
-[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=sanidhyaagrawal17/multimodal-construction-platform&branch=main&mainModule=app.py)
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://construction-intelligence-ai.streamlit.app)
 [![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18.2+-61DAFB.svg)](https://react.dev/)
