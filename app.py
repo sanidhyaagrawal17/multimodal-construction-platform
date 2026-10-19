@@ -408,15 +408,17 @@ OSHA_HAZARD_REGISTRY = {
         "title": "Scaffold Fall Protection — No Fall Protection Visible",
         "description": "Worker positioned on elevated scaffold platform appearing to be more than 10 ft above the lower level without visible fall protection (neither compliant guardrails nor personal fall arrest connection) per OSHA 1926.451(g)(1).",
         "severity": "Critical",
-        "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work."
+        "action": "Order elevated worker to immediately tie off securely to certified anchor points or install compliant guardrails before resuming elevated work per OSHA 1926.451(g)(1)."
     },
     "scaffold_missing_guardrail": {
         "standard": "OSHA 1926.451(g)(4)(i)",
         "subpart": "Subpart L (Scaffolds)",
-        "title": "Unguarded Scaffold Platform Edge (Approximate Zone)",
-        "description": "Scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Box denotes approximate unguarded zone.",
+        "title": "Scaffold Perimeter — Compliant Guardrails Not Visible (Scene-Level Finding)",
+        "short_label": "Scene-Level Finding · Guardrails not visible",
+        "description": "Elevated scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Note: Scene-level determination; physical bounding box suppressed to eliminate negative-space spatial variance.",
         "severity": "Critical",
-        "action": "Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i)."
+        "action": "Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i).",
+        "is_scene_level": True
     },
     "scaffold_plank_defect": {
         "standard": "OSHA 1926.451(b)(1)",
@@ -666,7 +668,7 @@ def build_unified_audit_findings(raw_data):
                     "osha_standard": "OSHA 1926.451(g)(1)",
                     "subpart": "Subpart L (Scaffolds)",
                     "observation": "Worker 1 positioned on elevated scaffold platform appearing to be more than 10 ft above the lower level without visible fall protection: neither compliant guardrails nor personal fall arrest connection per OSHA 1926.451(g)(1).",
-                    "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work.",
+                    "action": "Order elevated worker to immediately tie off securely to certified anchor points or install compliant guardrails before resuming elevated work per OSHA 1926.451(g)(1).",
                     "is_hazard": True,
                     "box_2d": [350, 248, 600, 372]
                 },
@@ -680,7 +682,7 @@ def build_unified_audit_findings(raw_data):
                     "osha_standard": "OSHA 1926.451(g)(1)",
                     "subpart": "Subpart L (Scaffolds)",
                     "observation": "Worker 2 positioned on elevated scaffold platform appearing to be more than 10 ft above the lower level without visible fall protection: neither compliant guardrails nor personal fall arrest connection per OSHA 1926.451(g)(1).",
-                    "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work.",
+                    "action": "Order elevated worker to immediately tie off securely to certified anchor points or install compliant guardrails before resuming elevated work per OSHA 1926.451(g)(1).",
                     "is_hazard": True,
                     "box_2d": [460, 138, 695, 273]
                 },
@@ -689,14 +691,15 @@ def build_unified_audit_findings(raw_data):
                     "category": "hazard",
                     "severity": "Critical",
                     "worker_badge": None,
-                    "short_label": "Scaffold · Unguarded platform edge (Approximate zone)",
-                    "title": "Unguarded Scaffold Platform Edge (Approximate Zone)",
+                    "short_label": "Scene-Level Finding · Guardrails not visible",
+                    "title": "Scaffold Perimeter — Compliant Guardrails Not Visible (Scene-Level Finding)",
                     "osha_standard": "OSHA 1926.451(g)(4)(i)",
                     "subpart": "Subpart L (Scaffolds)",
-                    "observation": "Scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Box denotes approximate unguarded zone.",
+                    "observation": "Elevated scaffold working platform appears to be more than 10 ft above the lower level and lacks compliant perimeter guardrails (toprails and midrails) along exposed open edges per OSHA 1926.451(g)(4)(i). Note: Scene-level determination; physical bounding box suppressed to eliminate negative-space spatial variance.",
                     "action": "Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i).",
                     "is_hazard": True,
-                    "box_2d": [320, 450, 560, 770]
+                    "is_scene_level": True,
+                    "box_2d": None
                 }
             ],
             "all_detections": [
@@ -713,17 +716,10 @@ def build_unified_audit_findings(raw_data):
                     "worker_badge": "W2",
                     "short_label": "Worker 2 · No fall protection visible",
                     "box_2d": [460, 138, 695, 273]
-                },
-                {
-                    "category": "hazard",
-                    "severity": "Critical",
-                    "worker_badge": None,
-                    "short_label": "Scaffold · Unguarded platform edge (Approximate zone)",
-                    "box_2d": [320, 450, 560, 770]
                 }
             ],
             "actions": [
-                "01 [IMMEDIATE ACTION]: Order all elevated workers to immediately tie off securely to certified anchor points or halt elevated scaffold work.",
+                "01 [IMMEDIATE ACTION]: Order all elevated workers to immediately tie off securely to certified anchor points or install compliant guardrails before resuming elevated work per OSHA 1926.451(g)(1).",
                 "02 [ENGINEERING FIX]: Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i).",
                 "03 [DOCUMENTATION & RE-INSPECTION]: Issue formal safety violation notice to subcontractor, photograph corrected scaffold configuration, and require competent person re-inspection prior to work resumption."
             ]
@@ -731,19 +727,19 @@ def build_unified_audit_findings(raw_data):
 
     scene_type = raw_data.get("scene_type", "construction_active")
     
-    # Non-construction image handler: stay completely quiet
+    # Non-construction image handler: unable to assess
     if scene_type == "non_construction":
         return {
             "scene_type": "non_construction",
             "workers_detected": 0,
-            "ppe_status_text": "N/A",
+            "ppe_status_text": "Unable to assess",
             "ppe_sub_text": "(Non-Construction Scene)",
             "ppe_color": "#94a3b8",
             "hazard_score": 0,
             "fall_risk_pct": 0,
             "hazards": [],
             "all_detections": [],
-            "actions": ["No construction activity detected. No OSHA standards triggered."]
+            "actions": ["Unable to assess: Non-construction scene detected. Visual field does not contain construction operations, personnel, or equipment governed by OSHA 29 CFR 1926 standards."]
         }
 
     raw_dets = raw_data.get("detections", [])
@@ -834,8 +830,9 @@ def build_unified_audit_findings(raw_data):
                 h_key = "scaffold_missing_guardrail"
                 
         reg = OSHA_HAZARD_REGISTRY[h_key]
-        short_label = reg["title"]
+        short_label = reg.get("short_label", reg["title"])
         obs = reg["description"]
+        is_scene = reg.get("is_scene_level", False)
         
         finding = {
             "id": f"finding_h_{h_idx}",
@@ -850,7 +847,8 @@ def build_unified_audit_findings(raw_data):
             "observation": obs,
             "action": reg["action"],
             "is_hazard": reg["severity"] in ["Critical", "High", "Moderate"],
-            "box_2d": d.get("box_2d", d.get("bbox", {}))
+            "is_scene_level": is_scene,
+            "box_2d": None if is_scene else d.get("box_2d", d.get("bbox", {}))
         }
         deduped_hazards.append(finding)
 
@@ -886,7 +884,7 @@ def build_unified_audit_findings(raw_data):
     # Mandatory 3-step protocol (Step 01, Step 02, Step 03)
     if total_workers > 0 and len(actual_hazards) > 0:
         actions = [
-            "01 [IMMEDIATE ACTION]: Order all elevated workers to immediately tie off securely to certified anchor points or halt elevated scaffold work.",
+            "01 [IMMEDIATE ACTION]: Order all elevated workers to immediately tie off securely to certified anchor points or install compliant guardrails before resuming elevated work per OSHA 1926.451(g)(1).",
             "02 [ENGINEERING FIX]: Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i).",
             "03 [DOCUMENTATION & RE-INSPECTION]: Issue formal safety violation notice to subcontractor, photograph corrected scaffold configuration, and require competent person re-inspection prior to work resumption."
         ]
@@ -909,6 +907,12 @@ def build_unified_audit_findings(raw_data):
             "03 [DOCUMENTATION]: Sign off scaffold inspection tag at access ladder per OSHA 1926.451 before authorizing trade access."
         ]
 
+    # all_detections for visual drawing contains ONLY physical person detections (guardrail box suppressed)
+    drawable_detections = [
+        h for h in deduped_hazards 
+        if h.get("box_2d") and not h.get("is_scene_level") and h.get("category") == "person"
+    ]
+
     return {
         "scene_type": scene_type,
         "workers_detected": total_workers,
@@ -918,7 +922,7 @@ def build_unified_audit_findings(raw_data):
         "hazard_score": hz_score,
         "fall_risk_pct": fall_risk,
         "hazards": actual_hazards,
-        "all_detections": deduped_hazards,
+        "all_detections": drawable_detections,
         "actions": actions
     }
 
@@ -949,12 +953,12 @@ def draw_safety_annotations(base_image):
     draw.rectangle([hx2 + 4, hy1, hx2 + 105, hy1 + 20], fill=(16, 185, 129))
     draw.text((hx2 + 8, hy1 + 3), "Hardhat · OK", fill=(255, 255, 255))
 
-    # Scaffold Hazard: Vivid Red box
-    sx1, sy1 = int(0.580 * w), int(0.420 * h)
-    sx2, sy2 = int((0.580 + 0.250) * w), int((0.420 + 0.360) * h)
-    draw.rectangle([sx1, sy1, sx2, sy2], outline=(239, 68, 68), width=3)
-    draw.rectangle([sx1, sy1 - 24, sx1 + 260, sy1], fill=(220, 38, 38))
-    draw.text((sx1 + 8, sy1 - 20), "Scaffold · Unguarded edge", fill=(255, 255, 255))
+    # Hardhat: Green child box
+    hx1, hy1 = int(0.455 * w), int(0.115 * h)
+    hx2, hy2 = int((0.455 + 0.080) * w), int((0.115 + 0.120) * h)
+    draw.rectangle([hx1, hy1, hx2, hy2], outline=(16, 185, 129), width=2)
+    draw.rectangle([hx2 + 4, hy1, hx2 + 105, hy1 + 20], fill=(16, 185, 129))
+    draw.text((hx2 + 8, hy1 + 3), "Hardhat · OK", fill=(255, 255, 255))
 
     return img
 
@@ -992,9 +996,11 @@ def draw_dynamic_annotations(base_image, detections):
 
     occupied_labels = []
 
-    # Pre-parse all bounding boxes in pixel coordinates
+    # Pre-parse all bounding boxes in pixel coordinates (strictly suppress scene-level and non-person boxes)
     parsed_items = []
     for d in detections:
+        if d.get("is_scene_level") or d.get("category") != "person" or d.get("hazard_key") == "scaffold_missing_guardrail" or not d.get("box_2d"):
+            continue
         bx, by, bw, bh = 0.0, 0.0, 0.1, 0.1
         box = d.get("box_2d", d.get("bbox", {}))
         if isinstance(box, (list, tuple)) and len(box) == 4:
@@ -1315,9 +1321,17 @@ with tab1:
         # Persistent state for live unified analysis
         if "unified_safety_audit" not in st.session_state:
             st.session_state["unified_safety_audit"] = None
+        if "session_audit_count" not in st.session_state:
+            st.session_state["session_audit_count"] = 0
+        MAX_SESSION_AUDITS = 15
+
+        st.caption(f"🛡️ Session Quota: {st.session_state['session_audit_count']} / {MAX_SESSION_AUDITS} audits performed")
 
         if selected_img and active_key and st.button("⚡ Run Live Gemini Vision Audit", type="primary"):
-            if check_rate_limit("safety_vision"):
+            if st.session_state["session_audit_count"] >= MAX_SESSION_AUDITS:
+                st.error(f"⚠️ Per-session request limit reached ({MAX_SESSION_AUDITS} audits). Please refresh your browser window to start a fresh audit session.")
+            elif check_rate_limit("safety_vision"):
+                st.session_state["session_audit_count"] += 1
                 with st.spinner(f"Executing computer vision safety inspection with {active_model_name}..."):
                     raw_data = call_gemini_multimodal(selected_img, SAFETY_PROMPT, system_instruction=SAFETY_SYSTEM_PROMPT)
                     st.session_state["unified_safety_audit"] = build_unified_audit_findings(raw_data)
@@ -1350,7 +1364,7 @@ with tab1:
                 <div style="background: #090e1a; border: 1px solid #1c263c; padding: 10px 16px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-top: 4px;">
                     <div><span style="color: #64748b;">Workers Detected:</span> <strong style="color: #fff; background: #131d31; padding: 2px 6px; border-radius: 4px;">{w_count} Active</strong></div>
                     <div><span style="color: #64748b;">PPE Compliance:</span> <strong style="color: {ppe_col}; background: rgba(245,158,11,0.15); padding: 2px 8px; border-radius: 4px;">{ppe_text}</strong> <span style="color: #94a3b8; font-size: 11px;">{ppe_sub}</span></div>
-                    <div><span style="color: #64748b;">Hazards Found:</span> <strong style="color: #f87171; background: rgba(239,68,68,0.15); padding: 2px 6px; border-radius: 4px;">{h_count} Detected</strong></div>
+                    <div><span style="color: #64748b;">Hazards Found:</span> <strong style="color: #f87171; background: rgba(239,68,68,0.15); padding: 2px 6px; border-radius: 4px;">{h_count} Flagged</strong></div>
                 </div>
                 """, unsafe_allow_html=True)
                 
@@ -1365,7 +1379,7 @@ with tab1:
                 
                 if len(hazards_list) == 0:
                     if audit.get("scene_type") == "non_construction":
-                        st.info("ℹ️ Non-construction scene detected. No safety hazards or violations found.")
+                        st.info("ℹ️ Unable to assess: Non-construction scene detected. Visual field does not contain construction operations, personnel, or equipment governed by OSHA 29 CFR 1926 standards.")
                     else:
                         st.markdown("""
                         <div style="background: #090e1a; border: 1px solid #1c263c; border-left: 4px solid #10b981; border-radius: 6px; padding: 10px 14px; margin-bottom: 8px;">
@@ -1453,7 +1467,7 @@ with tab1:
 - Date/Timestamp: {rep_date}
 - Workers Detected: {w_cnt} Active
 - PPE Compliance: {p_txt}
-- Hazards Found: {len(hazards_list)} Confirmed
+- Hazards Found: {len(hazards_list)} Flagged
 - Total Hazard Risk Score: {hazard_val} / 100
 - Fall Risk Index: {fall_val}%
 - Governing Engineering Standards: OSHA 1926.451 (Scaffolds), OSHA 1926.100 (PPE)
