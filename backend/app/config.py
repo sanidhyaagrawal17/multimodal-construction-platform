@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from pydantic import ConfigDict
 from pydantic_settings import BaseSettings
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,7 +32,6 @@ class Settings(BaseSettings):
     UPLOAD_DIR: Path = BASE_DIR / "uploads"
     MAX_IMAGE_SIZE_MB: int = 25
 
-    from pydantic import ConfigDict
     model_config = ConfigDict(env_file=".env", extra="allow")
 
 settings = Settings()
