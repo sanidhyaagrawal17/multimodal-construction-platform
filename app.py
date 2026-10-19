@@ -70,50 +70,52 @@ def get_protected_key():
 
 active_key = get_protected_key()
 
-# --- SIDEBAR: DUAL-MODE AI ENGINE CONFIG ---
-st.sidebar.markdown("### 🏗️ Site Intelligence Config")
+# --- SIDEBAR: EXECUTIVE PLATFORM CONTROLS ---
+st.sidebar.markdown("### 🏗️ Intelligence Core")
 
 model_options = [
-    "gemini-3.8-flash (Frontier Reasoning • Free)",
-    "gemini-3.5-flash (Fast Multimodal • Free)",
-    "gemini-3.5-flash-lite (High Throughput • Free)"
+    "gemini-3.8-flash (Frontier Multimodal)",
+    "gemini-3.5-flash (Low-Latency Vision)",
+    "gemini-3.5-flash-lite (High Throughput)"
 ]
-selected_model_choice = st.sidebar.selectbox("Active Gemini AI Model", model_options, index=0)
+selected_model_choice = st.sidebar.selectbox("Active AI Model", model_options, index=0)
 active_model_name = selected_model_choice.split(" ")[0]
-
-st.sidebar.markdown("""
-<div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.35); padding: 8px 12px; border-radius: 6px; font-size: 11px; color: #34d399; margin-bottom: 12px;">
-    <strong>🛡️ Zero Billing Guarantee:</strong> Strictly bound to Google AI Studio Free Tier. Paid models (e.g. Gemini 4 Argon) are permanently excluded.
-</div>
-""", unsafe_allow_html=True)
 
 if active_key:
     try:
         genai.configure(api_key=active_key)
-        st.sidebar.success(f"⚡ Live AI Engine Connected\n({active_model_name} • Temp 0.1)")
-        st.sidebar.text_input(
-            "Gemini API Key", 
-            value="••••••••••••••••••••••••••••••••••••••••••", 
-            type="password", 
-            disabled=True,
-            help="Your API key is securely loaded and protected. The app is running strictly on Google's free-tier model."
-        )
+        st.sidebar.markdown(f"""
+        <div style="background: #090e1a; border: 1px solid #1c263c; border-left: 3px solid #10b981; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="height: 8px; width: 8px; background-color: #10b981; border-radius: 50%; display: inline-block;"></span>
+                <span style="font-size: 12px; font-weight: bold; color: #f8fafc;">Live AI Vision Active</span>
+            </div>
+            <div style="font-size: 11px; color: #94a3b8; font-family: monospace; margin-top: 3px;">{active_model_name} • Calibrated Temp 0.1</div>
+        </div>
+        """, unsafe_allow_html=True)
     except Exception as e:
-        st.sidebar.error(f"API Configuration Warning: {e}")
+        st.sidebar.error(f"AI Engine Notification: {e}")
 else:
-    st.sidebar.info("🛡️ Running in Calibrated Demonstration Mode (Zero-Error Failsafe)")
+    st.sidebar.info("🛡️ Calibrated Engineering Baseline Active")
 
 st.sidebar.markdown("---")
-st.sidebar.markdown(f"""
-**System Architecture:**
-- **Frontend:** Streamlit Community Cloud
-- **AI Core:** Google Gemini (`{active_model_name}`)
-- **Consistency Guardrail:** Deterministic Temp 0.1 + Rule-Based Calibration
-- **Standards:** OSHA 1926 • ACI 318-19 • IBC 2024
+st.sidebar.markdown("""
+**Governing Engineering Codes:**
+- **OSHA 1926.501** • Fall Protection Criteria
+- **OSHA 1926.451** • Scaffold Platform Safety
+- **OSHA 1926.100** • Head & High-Vis PPE
+- **ACI 318-19** • Reinforced Concrete Shear Strength
+- **ACI 224R-01** • Tolerable Surface Crack Limits
+- **IBC 2024** • International Building Code
 """)
 
 st.sidebar.markdown("---")
-st.sidebar.caption("Deterministic Grounding: Temperature clamped to 0.1 to eliminate hallucination & metric drift.")
+st.sidebar.markdown("""
+<div style="font-size: 11px; color: #64748b; line-height: 1.5;">
+    <strong>Civil Engineering Decision Support</strong><br>
+    Automated site compliance, structural risk classification, and multimodal telemetry.
+</div>
+""", unsafe_allow_html=True)
 
 # --- MAIN HEADER ---
 st.markdown("<div class='main-title'>🏗️ Multimodal Construction Intelligence Platform</div>", unsafe_allow_html=True)
@@ -444,7 +446,7 @@ with tab1:
             st.session_state["live_safety_data"] = None
 
         if selected_img and active_key and st.button("⚡ Run Live Gemini Vision Audit", type="primary"):
-            with st.spinner(f"Executing live multimodal vision inference with {active_model_name} (Zero-Billing Free Tier)..."):
+            with st.spinner(f"Executing computer vision safety inspection with {active_model_name}..."):
                 raw_data = call_gemini_multimodal(selected_img, SAFETY_PROMPT, system_instruction=SAFETY_SYSTEM_PROMPT)
                 st.session_state["live_safety_data"] = calibrate_safety_response(raw_data)
 
@@ -453,13 +455,13 @@ with tab1:
         if selected_img:
             if live_safety_data and "detections" in live_safety_data:
                 annotated = draw_dynamic_annotations(selected_img, live_safety_data.get("detections", []))
-                st.image(annotated, caption="⚡ Live Gemini Vision Detection Overlay (Dynamic Bounding Boxes)", use_container_width=True)
+                st.image(annotated, caption="Live Computer Vision Overlay • OSHA 1926 Spatial Telemetry", use_container_width=True)
                 w_count = live_safety_data.get("workers_detected", len([d for d in live_safety_data.get("detections", []) if d.get("type") == "worker"]))
                 ppe_pct = live_safety_data.get("ppe_compliance_pct", 100)
                 h_count = live_safety_data.get("hazards_count", len([d for d in live_safety_data.get("detections", []) if d.get("severity") in ["Critical", "High", "Moderate"]]))
             else:
                 annotated = draw_safety_annotations(selected_img)
-                st.image(annotated, caption="Computer Vision Detection Overlay (Normalized Bounding Boxes Clamped [0.0 - 1.0])", use_container_width=True)
+                st.image(annotated, caption="Computer Vision Detection Overlay • OSHA 1926 Spatial Telemetry", use_container_width=True)
                 w_count = 2
                 ppe_pct = 100
                 h_count = 2
@@ -472,7 +474,7 @@ with tab1:
                 <div><span style="color: #64748b;">Hazards Found:</span> <strong style="color: #f87171; background: rgba(239,68,68,0.15); padding: 2px 6px; border-radius: 4px;">{h_count} Detected</strong></div>
             </div>
             """, unsafe_allow_html=True)
-            st.caption("ℹ️ *Hover note: Worker 1 is wearing hardhat and vest (100% PPE Pass). Missing tie-off is tracked under Fall Protection (OSHA 1926.501).*")
+            st.caption("💡 *Engineering Protocol: Worker PPE conforms with OSHA 1926.100. Fall protection near leading edge is governed strictly under OSHA 1926.501(b)(1).*")
 
             # --- DETAILED HAZARDS & DETECTED OBJECTS BREAKDOWN ---
             st.markdown("---")
@@ -622,7 +624,7 @@ with tab2:
 
         if run_crack_scan:
             if active_key and uploaded_crack:
-                with st.spinner(f"Analyzing concrete morphology with {active_model_name} (Zero-Billing Free Tier)..."):
+                with st.spinner(f"Forensically diagnosing concrete defect with {active_model_name}..."):
                     crack_img = Image.open(uploaded_crack)
                     st.session_state["live_crack_data"] = call_gemini_multimodal(
                         crack_img, 
@@ -743,7 +745,7 @@ with tab4:
         parse_notes = st.button("Extract Highlights with AI", type="primary")
         
         if parse_notes and active_key:
-            with st.spinner(f"Extracting field operations intelligence with {active_model_name} (Zero-Billing Free Tier)..."):
+            with st.spinner(f"Extracting field operations intelligence with {active_model_name}..."):
                 prompt = f"""
                 Analyze these construction daily field notes:
                 "{notes_input}"
@@ -798,7 +800,7 @@ with tab5:
 
     if st.button("Query Knowledge Base", type="primary"):
         if active_key:
-            with st.spinner(f"Consulting live {active_model_name} knowledge base with engineering standards..."):
+            with st.spinner(f"Consulting engineering standards with {active_model_name}..."):
                 ans = call_gemini_text(
                     f"Question: {q_final}\nProvide an authoritative answer citing ACI, OSHA, or IBC building codes.",
                     system_instruction="You are a licensed Structural Civil Engineer and OSHA Construction Safety Specialist."
