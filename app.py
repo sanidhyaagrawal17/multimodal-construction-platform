@@ -2,6 +2,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 import json
 import os
+import re
 import io
 import time
 import datetime
@@ -29,8 +30,13 @@ st.markdown("""
         user-select: text;
     }
     
-    /* Ensure the expander icon NEVER displays literal 'keyboard_arrow_right' text */
-    [data-testid="stExpanderToggleIcon"] {
+    /* Universal suppression of literal ligature text for st.expander in all Streamlit versions */
+    details[data-testid="stExpander"] summary span:first-child,
+    details[data-testid="stExpander"] summary [data-testid*="Icon"],
+    details[data-testid="stExpander"] summary .material-symbols-rounded,
+    details[data-testid="stExpander"] summary svg,
+    [data-testid="stExpanderToggleIcon"],
+    [data-testid="stExpanderIcon"] {
         font-size: 0px !important;
         line-height: 0 !important;
         color: transparent !important;
@@ -39,12 +45,17 @@ st.markdown("""
         justify-content: center !important;
         width: 18px !important;
         height: 18px !important;
+        min-width: 18px !important;
         overflow: hidden !important;
         position: relative !important;
         user-select: none !important;
+        vertical-align: middle !important;
     }
     
-    [data-testid="stExpanderToggleIcon"]::before {
+    details[data-testid="stExpander"] summary span:first-child::before,
+    details[data-testid="stExpander"] summary [data-testid*="Icon"]::before,
+    [data-testid="stExpanderToggleIcon"]::before,
+    [data-testid="stExpanderIcon"]::before {
         content: "▶" !important;
         font-size: 11px !important;
         color: #94a3b8 !important;
@@ -53,8 +64,11 @@ st.markdown("""
         transition: transform 0.15s ease !important;
     }
     
+    details[data-testid="stExpander"][open] summary span:first-child::before,
+    details[data-testid="stExpander"][open] summary [data-testid*="Icon"]::before,
     details[open] [data-testid="stExpanderToggleIcon"]::before,
-    [aria-expanded="true"] [data-testid="stExpanderToggleIcon"]::before {
+    [aria-expanded="true"] [data-testid="stExpanderToggleIcon"]::before,
+    [aria-expanded="true"] [data-testid="stExpanderIcon"]::before {
         content: "▼" !important;
     }
 
@@ -354,6 +368,114 @@ OSHA_HAZARD_REGISTRY = {
     }
 }
 
+def normalize_bbox(box):
+    """Normalize bounding box to (ymin, xmin, ymax, xmax) in [0.0, 1.0]."""
+    if isinstance(box, (list, tuple)) and len(box) == 4:
+        y1, x1, y2, x2 = [float(v) for v in box]
+        if max(y1, x1, y2, x2) > 1.0:
+            y1, x1, y2, x2 = y1 / 1000.0, x1 / 1000.0, y2 / 1000.0, x2 / 1000.0
+        return min(y1, y2), min(x1, x2), max(y1, y2), max(x1, x2)
+    elif isinstance(box, dict):
+        x = float(box.get("x", box.get("x1", box.get("xmin", 0.0))))
+        y = float(box.get("y", box.get("y1", box.get("ymin", 0.0))))
+        w = float(box.get("w", box.get("width", 0.1)))
+        h = float(box.get("h", box.get("height", 0.1)))
+        if max(x, y, w, h) > 1.0:
+            x, y, w, h = x / 1000.0, y / 1000.0, w / 1000.0, h / 1000.0
+        return y, x, y + h, x + w
+    return 0.0, 0.0, 0.1, 0.1
+
+def calculate_iou(box1, box2):
+    """Calculate Intersection over Union (IoU) of two normalized boxes."""
+    y1_min, x1_min, y1_max, x1_max = normalize_bbox(box1)
+    y2_min, x2_min, y2_max, x2_max = normalize_bbox(box2)
+    
+    inter_ymin = max(y1_min, y2_min)
+    inter_xmin = max(x1_min, x2_min)
+    inter_ymax = min(y1_max, y2_max)
+    inter_xmax = min(x1_max, x2_max)
+    
+    inter_w = max(0.0, inter_xmax - inter_xmin)
+    inter_h = max(0.0, inter_ymax - inter_ymin)
+    inter_area = inter_w * inter_h
+    
+    area1 = max(0.0, x1_max - x1_min) * max(0.0, y1_max - y1_min)
+    area2 = max(0.0, x2_max - x2_min) * max(0.0, y2_max - y2_min)
+    
+    union_area = area1 + area2 - inter_area
+    if union_area <= 0:
+        return 0.0
+    return inter_area / union_area
+
+def deduplicate_person_detections(person_dets, iou_threshold=0.35):
+    """
+    Apply Non-Maximum Suppression (NMS) to person detections.
+    Sorts top-to-bottom by ymin, then filters out any candidate with IoU >= iou_threshold
+    against an already accepted person detection.
+    """
+    if not person_dets:
+        return []
+    
+    sorted_dets = sorted(person_dets, key=lambda d: normalize_bbox(d.get("box_2d", d.get("bbox", {})))[0])
+    accepted = []
+    for candidate in sorted_dets:
+        c_box = candidate.get("box_2d", candidate.get("bbox", {}))
+        y1, x1, y2, x2 = normalize_bbox(c_box)
+        area = (y2 - y1) * (x2 - x1)
+        # Drop degenerate boxes
+        if area < 0.005 or (y2 - y1) < 0.04 or (x2 - x1) < 0.02:
+            continue
+        is_dup = False
+        for acc in accepted:
+            acc_box = acc.get("box_2d", acc.get("bbox", {}))
+            if calculate_iou(c_box, acc_box) >= iou_threshold:
+                is_dup = True
+                break
+        if not is_dup:
+            accepted.append(candidate)
+    return accepted
+
+def deduplicate_hazard_detections(hazard_dets, iou_threshold=0.40):
+    """Filter duplicate or heavily overlapping non-person hazard detections."""
+    if not hazard_dets:
+        return []
+    accepted = []
+    for candidate in hazard_dets:
+        c_box = candidate.get("box_2d", candidate.get("bbox", {}))
+        is_dup = False
+        for acc in accepted:
+            acc_box = acc.get("box_2d", acc.get("bbox", {}))
+            if calculate_iou(c_box, acc_box) >= iou_threshold:
+                is_dup = True
+                break
+        if not is_dup:
+            accepted.append(candidate)
+    return accepted
+
+def draw_dashed_rectangle(draw, box, outline, width=3, dash_len=10, gap_len=6):
+    """Draw a tactical dashed rectangular perimeter."""
+    x1, y1, x2, y2 = box
+    cur_x = x1
+    while cur_x < x2:
+        next_x = min(cur_x + dash_len, x2)
+        draw.line([(cur_x, y1), (next_x, y1)], fill=outline, width=width)
+        cur_x = next_x + gap_len
+    cur_y = y1
+    while cur_y < y2:
+        next_y = min(cur_y + dash_len, y2)
+        draw.line([(x2, cur_y), (x2, next_y)], fill=outline, width=width)
+        cur_y = next_y + gap_len
+    cur_x = x2
+    while cur_x > x1:
+        next_x = max(cur_x - dash_len, x1)
+        draw.line([(cur_x, y2), (next_x, y2)], fill=outline, width=width)
+        cur_x = next_x - gap_len
+    cur_y = y2
+    while cur_y > y1:
+        next_y = max(cur_y - dash_len, y1)
+        draw.line([(x1, cur_y), (x1, next_y)], fill=outline, width=width)
+        cur_y = next_y - gap_len
+
 def calculate_deterministic_scores(scene_type, total_workers, actual_hazards):
     """
     Compute reproducible, deterministic hazard and fall risk scores directly from visual findings.
@@ -396,8 +518,8 @@ def build_unified_audit_findings(raw_data):
         return {
             "scene_type": "construction_active",
             "workers_detected": 2,
-            "ppe_status_text": "Possible non-compliance",
-            "ppe_sub_text": ": head protection not clearly visible",
+            "ppe_status_text": "Possible non-compliance:",
+            "ppe_sub_text": "head protection not clearly visible",
             "ppe_color": "#f59e0b",
             "hazard_score": 88,
             "fall_risk_pct": 90,
@@ -407,11 +529,11 @@ def build_unified_audit_findings(raw_data):
                     "category": "person",
                     "severity": "Critical",
                     "worker_badge": "W1",
-                    "short_label": "W1 · Upper Tier: No tie-off visible",
+                    "short_label": "Worker 1 · No tie-off visible",
                     "title": "Scaffold Fall Protection — No Visible Personal Fall Arrest",
                     "osha_standard": "OSHA 1926.451(g)(1)",
                     "subpart": "Subpart L (Scaffolds)",
-                    "observation": "Worker 1 (Upper Tier) positioned on elevated scaffold frame without visible personal fall arrest connection per OSHA 1926.451(g)(1).",
+                    "observation": "Worker 1 positioned on elevated scaffold frame without visible personal fall arrest connection per OSHA 1926.451(g)(1).",
                     "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work.",
                     "is_hazard": True,
                     "box_2d": [350, 248, 600, 372]
@@ -421,11 +543,11 @@ def build_unified_audit_findings(raw_data):
                     "category": "person",
                     "severity": "Critical",
                     "worker_badge": "W2",
-                    "short_label": "W2 · Lower Tier: No tie-off visible",
+                    "short_label": "Worker 2 · No tie-off visible",
                     "title": "Scaffold Fall Protection — No Visible Personal Fall Arrest",
                     "osha_standard": "OSHA 1926.451(g)(1)",
                     "subpart": "Subpart L (Scaffolds)",
-                    "observation": "Worker 2 (Lower Tier) positioned on lower scaffold working level without visible personal fall arrest connection per OSHA 1926.451(g)(1).",
+                    "observation": "Worker 2 positioned on elevated scaffold frame without visible personal fall arrest connection per OSHA 1926.451(g)(1).",
                     "action": "Order elevated worker to immediately connect dual self-retracting lanyard to rated anchor point or halt elevated scaffold work.",
                     "is_hazard": True,
                     "box_2d": [460, 138, 695, 273]
@@ -450,14 +572,14 @@ def build_unified_audit_findings(raw_data):
                     "category": "person",
                     "severity": "Critical",
                     "worker_badge": "W1",
-                    "short_label": "W1 · Upper Tier: No tie-off visible",
+                    "short_label": "Worker 1 · No tie-off visible",
                     "box_2d": [350, 248, 600, 372]
                 },
                 {
                     "category": "person",
                     "severity": "Critical",
                     "worker_badge": "W2",
-                    "short_label": "W2 · Lower Tier: No tie-off visible",
+                    "short_label": "Worker 2 · No tie-off visible",
                     "box_2d": [460, 138, 695, 273]
                 },
                 {
@@ -493,70 +615,58 @@ def build_unified_audit_findings(raw_data):
         }
 
     raw_dets = raw_data.get("detections", [])
-    deduped_hazards = []
     
-    # Strictly count and differentiate person detections
-    person_idx = 0
-    tier_names = ["Upper Tier", "Lower Tier", "Ground / Deck Tier"]
-
-    for idx, d in enumerate(raw_dets):
+    raw_person_dets = []
+    raw_hazard_dets = []
+    
+    for d in raw_dets:
         cat = d.get("category", "hazard")
         lbl = str(d.get("label", "")) + " " + str(d.get("short_label", ""))
         is_person = (cat == "person" or any(w in lbl.lower() for w in ["worker", "person", "ironworker", "man"]))
         
-        # Guard: ensure scaffolding structures are not classified as workers
+        # Scaffolding structures are NOT persons
         if "scaffold" in lbl.lower() and not any(w in lbl.lower() for w in ["worker", "person", "ironworker", "man"]):
             is_person = False
-
+            
         if is_person:
-            cat = "person"
-            person_idx += 1
-            w_badge = f"W{person_idx}"
-            tier_name = tier_names[person_idx - 1] if person_idx <= len(tier_names) else f"Tier {person_idx}"
+            raw_person_dets.append(d)
         else:
-            cat = "hazard"
-            w_badge = None
-            tier_name = None
-
+            raw_hazard_dets.append(d)
+            
+    # Apply Non-Maximum Suppression (NMS) to eliminate duplicate person hallucinations
+    deduped_persons = deduplicate_person_detections(raw_person_dets, iou_threshold=0.35)
+    deduped_hazards_nonperson = deduplicate_hazard_detections(raw_hazard_dets, iou_threshold=0.40)
+    
+    deduped_hazards = []
+    
+    # Process Persons: strictly assign Worker 1, Worker 2 (no made-up tier names)
+    for p_idx, d in enumerate(deduped_persons, start=1):
+        w_badge = f"W{p_idx}"
         h_key = d.get("hazard_key", "")
         if not h_key or h_key not in OSHA_HAZARD_REGISTRY:
             lbl_lower = (str(d.get("label", "")) + " " + str(d.get("short_label", "")) + " " + str(d.get("description", "")) + " " + str(d.get("observation", ""))).lower()
-            if "scaffold" in lbl_lower and ("guard" in lbl_lower or "edge" in lbl_lower or "rail" in lbl_lower):
-                h_key = "scaffold_missing_guardrail"
-            elif "scaffold" in lbl_lower and ("fall" in lbl_lower or "tie" in lbl_lower or "lanyard" in lbl_lower or "arrest" in lbl_lower):
-                h_key = "scaffold_no_fall_arrest"
+            if "compliant" in lbl_lower or "ground" in lbl_lower:
+                h_key = "worker_compliant"
             elif "steel" in lbl_lower or "ironworker" in lbl_lower:
                 h_key = "steel_erection_fall_hazard"
-            elif "leading edge" in lbl_lower or "perimeter" in lbl_lower:
+            elif "leading" in lbl_lower:
                 h_key = "leading_edge_fall_hazard"
-            elif "hardhat" in lbl_lower or "helmet" in lbl_lower:
-                h_key = "ppe_no_hardhat"
-            elif cat == "person":
-                h_key = "scaffold_no_fall_arrest"
             else:
-                h_key = "scaffold_missing_guardrail"
-
+                h_key = "scaffold_no_fall_arrest"
+        
+        # Canonical lookup from registry (guarantees clause and severity consistency)
         reg = OSHA_HAZARD_REGISTRY[h_key]
         
-        # Determine concise label with W1 / W2 pairing
-        if cat == "person":
-            short_label = f"{w_badge} · {tier_name}: No tie-off visible"
+        if h_key == "worker_compliant":
+            short_label = f"Worker {p_idx} · PPE Compliant"
+            obs = f"Worker {p_idx} observed with verified head protection and high-visibility apparel on stable grade."
         else:
-            short_label = reg["title"]
-
-        obs = d.get("observation", d.get("description", reg["description"]))
-        # Enforce non-overclaiming phrasing and location distinction
-        obs = obs.replace("lacking required personal fall arrest", "without visible personal fall arrest connection")
-        obs = obs.replace("lacks personal fall arrest", "without visible personal fall arrest connection")
-        obs = obs.replace("lacks fall arrest", "no visible fall arrest")
-        obs = obs.replace("lacking fall arrest", "no visible fall arrest")
-        
-        if cat == "person":
-            obs = f"Worker {person_idx} ({tier_name}) positioned on elevated platform without visible personal fall arrest connection per OSHA 1926.451(g)(1)."
-
+            short_label = f"Worker {p_idx} · No tie-off visible"
+            obs = f"Worker {p_idx} positioned on elevated scaffold frame without visible personal fall arrest connection per OSHA 1926.451(g)(1)."
+            
         finding = {
-            "id": f"finding_{idx+1}",
-            "category": cat,
+            "id": f"finding_w_{p_idx}",
+            "category": "person",
             "worker_badge": w_badge,
             "hazard_key": h_key,
             "severity": reg["severity"],
@@ -570,9 +680,46 @@ def build_unified_audit_findings(raw_data):
             "box_2d": d.get("box_2d", d.get("bbox", {}))
         }
         deduped_hazards.append(finding)
+        
+    # Process Non-Person Hazards: strictly map to canonical registry
+    for h_idx, d in enumerate(deduped_hazards_nonperson, start=1):
+        h_key = d.get("hazard_key", "")
+        if not h_key or h_key not in OSHA_HAZARD_REGISTRY:
+            lbl_lower = (str(d.get("label", "")) + " " + str(d.get("short_label", "")) + " " + str(d.get("description", "")) + " " + str(d.get("observation", ""))).lower()
+            if "guard" in lbl_lower or "edge" in lbl_lower or "rail" in lbl_lower:
+                h_key = "scaffold_missing_guardrail"
+            elif "plank" in lbl_lower:
+                h_key = "scaffold_plank_defect"
+            elif "toeboard" in lbl_lower:
+                h_key = "scaffold_missing_toeboard"
+            elif "leading" in lbl_lower:
+                h_key = "leading_edge_fall_hazard"
+            else:
+                h_key = "scaffold_missing_guardrail"
+                
+        reg = OSHA_HAZARD_REGISTRY[h_key]
+        short_label = reg["title"]
+        obs = reg["description"]
+        
+        finding = {
+            "id": f"finding_h_{h_idx}",
+            "category": "hazard",
+            "worker_badge": None,
+            "hazard_key": h_key,
+            "severity": reg["severity"],
+            "short_label": short_label,
+            "title": reg["title"],
+            "osha_standard": reg["standard"],
+            "subpart": reg["subpart"],
+            "observation": obs,
+            "action": reg["action"],
+            "is_hazard": reg["severity"] in ["Critical", "High", "Moderate"],
+            "box_2d": d.get("box_2d", d.get("bbox", {}))
+        }
+        deduped_hazards.append(finding)
 
-    # STRICT WORKER COUNT: Exactly equal to the number of person detections boxed
-    total_workers = person_idx
+    # STRICT WORKER COUNT: Exactly equal to the number of deduplicated person detections
+    total_workers = len(deduped_persons)
     
     # Filter only actual hazards for infractions
     actual_hazards = [h for h in deduped_hazards if h["is_hazard"]]
@@ -583,29 +730,35 @@ def build_unified_audit_findings(raw_data):
         ppe_str = "N/A"
         ppe_sub = "(No Workers in View)"
         ppe_col = "#94a3b8"
-    elif raw_ppe == "compliant" and not any(h.get("hazard_key") in ["ppe_unverified", "ppe_no_hardhat"] for h in actual_hazards):
+    elif raw_ppe == "compliant" and not any(h.get("hazard_key") in ["ppe_unverified", "ppe_no_hardhat", "scaffold_no_fall_arrest"] for h in actual_hazards):
         ppe_str = "100% Pass"
         ppe_sub = "(Strict OSHA 1926.100 Head Protection)"
         ppe_col = "#34d399"
     elif any(h.get("hazard_key") == "ppe_no_hardhat" for h in actual_hazards):
-        ppe_str = "Possible non-compliance"
-        ppe_sub = ": head protection not clearly visible"
+        ppe_str = "Possible non-compliance:"
+        ppe_sub = "head protection not clearly visible"
         ppe_col = "#f59e0b"
     else:
         # Distant or hood-like coverings
-        ppe_str = "Possible non-compliance"
-        ppe_sub = ": head protection not clearly visible"
+        ppe_str = "Possible non-compliance:"
+        ppe_sub = "head protection not clearly visible"
         ppe_col = "#f59e0b"
 
     # Deterministic scores: zero variance across runs
     hz_score, fall_risk = calculate_deterministic_scores(scene_type, total_workers, actual_hazards)
 
     # Mandatory 3-step protocol (Step 01, Step 02, Step 03)
-    if len(actual_hazards) > 0:
+    if total_workers > 0 and len(actual_hazards) > 0:
         actions = [
             "01 [IMMEDIATE ACTION]: Order all elevated workers to immediately tie off securely to certified anchor points or halt elevated scaffold work.",
             "02 [ENGINEERING FIX]: Erect compliant toprails (38-45 in), midrails, and 3.5 in toeboards on all open scaffold platform edges per OSHA 1926.451(g)(4)(i).",
             "03 [DOCUMENTATION & RE-INSPECTION]: Issue formal safety violation notice to subcontractor, photograph corrected scaffold configuration, and require competent person re-inspection prior to work resumption."
+        ]
+    elif len(actual_hazards) > 0:
+        actions = [
+            "01 [PERIMETER ACCESS]: Maintain perimeter security fencing, red warning tags, and lockouts around unattended scaffold structure.",
+            "02 [STRUCTURAL AUDIT]: Erect compliant perimeter guardrails (38-45 in) and conduct competent person inspection before authorizing trade access.",
+            "03 [DOCUMENTATION]: Sign off scaffold inspection tag at access ladder per OSHA 1926.451 before authorizing any work on structure."
         ]
     elif total_workers > 0:
         actions = [
@@ -725,6 +878,12 @@ def draw_dynamic_annotations(base_image, detections):
                 x1, y1, w, h = x1 / 1000.0, y1 / 1000.0, w / 1000.0, h / 1000.0
             bx, by, bw, bh = x1, y1, max(0.01, w), max(0.01, h)
 
+        cat = d.get("category", "person" if any(w in str(d.get("label", "")).lower() for w in ["worker", "person", "ironworker", "man"]) else "hazard")
+        if cat != "person":
+            # Cap scaffold bounding box size so it doesn't cover the entire structure
+            bw = min(0.38, bw)
+            bh = min(0.30, bh)
+
         bx = max(0.0, min(0.98, bx))
         by = max(0.0, min(0.98, by))
         bw = max(0.01, min(1.0 - bx, bw))
@@ -733,7 +892,6 @@ def draw_dynamic_annotations(base_image, detections):
         px1, py1 = int(bx * canvas_w), int(by * canvas_h)
         px2, py2 = int((bx + bw) * canvas_w), int((by + bh) * canvas_h)
 
-        cat = d.get("category", "person" if any(w in str(d.get("label", "")).lower() for w in ["worker", "person", "ironworker", "man"]) else "hazard")
         parsed_items.append({
             "data": d,
             "box": [px1, py1, px2, py2],
@@ -768,18 +926,21 @@ def draw_dynamic_annotations(base_image, detections):
         item["outline_col"] = outline_col
         item["pill_bg"] = pill_bg
 
-        draw.rectangle([px1, py1, px2, py2], outline=outline_col, width=3 if canvas_w >= 1000 else 2)
-
-        c_len = min(16, abs(px2 - px1) // 3, abs(py2 - py1) // 3)
-        if c_len > 4:
-            draw.line([(px1, py1), (px1 + c_len, py1)], fill=c_fill, width=4)
-            draw.line([(px1, py1), (px1, py1 + c_len)], fill=c_fill, width=4)
-            draw.line([(px2, py1), (px2 - c_len, py1)], fill=c_fill, width=4)
-            draw.line([(px2, py1), (px2, py1 + c_len)], fill=c_fill, width=4)
-            draw.line([(px1, py2), (px1 + c_len, py2)], fill=c_fill, width=4)
-            draw.line([(px1, py2), (px1, py2 - c_len)], fill=c_fill, width=4)
-            draw.line([(px2, py2), (px2 - c_len, py2)], fill=c_fill, width=4)
-            draw.line([(px2, py2), (px2, py2 - c_len)], fill=c_fill, width=4)
+        if cat == "person":
+            draw.rectangle([px1, py1, px2, py2], outline=outline_col, width=3 if canvas_w >= 1000 else 2)
+            c_len = min(16, abs(px2 - px1) // 3, abs(py2 - py1) // 3)
+            if c_len > 4:
+                draw.line([(px1, py1), (px1 + c_len, py1)], fill=c_fill, width=4)
+                draw.line([(px1, py1), (px1, py1 + c_len)], fill=c_fill, width=4)
+                draw.line([(px2, py1), (px2 - c_len, py1)], fill=c_fill, width=4)
+                draw.line([(px2, py1), (px2, py1 + c_len)], fill=c_fill, width=4)
+                draw.line([(px1, py2), (px1 + c_len, py2)], fill=c_fill, width=4)
+                draw.line([(px1, py2), (px1, py2 - c_len)], fill=c_fill, width=4)
+                draw.line([(px2, py2), (px2 - c_len, py2)], fill=c_fill, width=4)
+                draw.line([(px2, py2), (px2, py2 - c_len)], fill=c_fill, width=4)
+        else:
+            # Draw dashed outline for scaffold hazard / approximate hazard perimeter
+            draw_dashed_rectangle(draw, [px1, py1, px2, py2], outline_col, width=3 if canvas_w >= 1000 else 2, dash_len=10, gap_len=6)
 
         # Draw direct worker identifier badge in top-left of box
         w_badge = d.get("worker_badge")
@@ -1133,7 +1294,11 @@ with tab1:
         actions_list = audit.get("actions", []) if audit else []
         if len(actions_list) > 0:
             for idx, act in enumerate(actions_list):
-                st.markdown(f"**{idx+1:02d} [ACTION]:** {act}")
+                m = re.match(r'^(\d+\s*\[.*?\]:?)\s*(.*)$', act)
+                if m:
+                    st.markdown(f"**{m.group(1)}** {m.group(2)}")
+                else:
+                    st.markdown(f"**{idx+1:02d} [ACTION]:** {act}")
         else:
             if audit:
                 st.markdown("No corrective safety actions required.")
@@ -1165,7 +1330,11 @@ with tab1:
         report_md += "\n## Mandatory Corrective Protocols\n"
         if len(actions_list) > 0:
             for idx, act in enumerate(actions_list):
-                report_md += f"{idx+1:02d}. {act}\n"
+                m = re.match(r'^\d+\s*(\[.*?\]:?)\s*(.*)$', act)
+                if m:
+                    report_md += f"{idx+1:02d}. {m.group(1)} {m.group(2)}\n"
+                else:
+                    report_md += f"{idx+1:02d}. {act}\n"
         else:
             report_md += "1. Continue routine site safety oversight and daily housekeeping.\n"
 
