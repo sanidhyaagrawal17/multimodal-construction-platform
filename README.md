@@ -77,9 +77,9 @@ multimodal-construction-platform/
 │   │   ├── utils/           # In-memory image processing & synthetic scenario generators
 │   │   ├── config.py        # Centralized settings & environment bindings
 │   │   └── main.py          # FastAPI application entrypoint with CORS & error handlers
-│   ├── tests/               # Pytest automated test suite (14 unit & integration tests)
+│   ├── tests/               # Pytest automated test suite (15 unit & integration tests)
 │   │   ├── test_api.py               # REST API route integration tests (9 tests)
-│   │   ├── test_vision_heuristics.py # IoU deduplication, OSHA registry, and edge-case unit tests (5 tests)
+│   │   ├── test_vision_heuristics.py # IoU deduplication, OSHA registry, and edge-case unit tests (6 tests)
 │   │   └── verify_live_endpoints.py  # Manual HTTP endpoint testing utility
 │   ├── requirements.txt     # Python backend dependencies
 │   └── Dockerfile           # Backend container specification
@@ -210,7 +210,7 @@ The platform includes preloaded samples and clipboard pasting for quick evaluati
 
 ## 🧪 Automated Verification & Test Suite
 
-The platform includes **14 automated unit and integration tests** executed via pytest:
+The platform includes **15 automated unit and integration tests** executed via pytest:
 
 ```bash
 cd backend
@@ -220,22 +220,23 @@ pytest tests/ -v
 
 ### Test Suite Execution Output:
 ```text
-backend/tests/test_api.py::test_root_and_health PASSED                   [  7%]
-backend/tests/test_api.py::test_samples_endpoint PASSED                  [ 14%]
-backend/tests/test_api.py::test_safety_analysis_json PASSED              [ 21%]
-backend/tests/test_api.py::test_crack_analysis_json PASSED               [ 28%]
-backend/tests/test_api.py::test_planning_generation PASSED               [ 35%]
-backend/tests/test_api.py::test_valuation_calculation PASSED             [ 42%]
-backend/tests/test_api.py::test_daily_log_processing PASSED              [ 50%]
-backend/tests/test_api.py::test_weather_advisory PASSED                  [ 57%]
-backend/tests/test_api.py::test_chat_assistant PASSED                    [ 64%]
-backend/tests/test_vision_heuristics.py::test_iou_calculation_and_person_deduplication PASSED [ 71%]
-backend/tests/test_vision_heuristics.py::test_canonical_osha_hazard_registry PASSED [ 78%]
-backend/tests/test_vision_heuristics.py::test_scene_level_finding_suppression PASSED [ 85%]
-backend/tests/test_vision_heuristics.py::test_empty_scaffold_zero_hazards PASSED [ 92%]
-backend/tests/test_vision_heuristics.py::test_compliant_ground_worker PASSED [100%]
+backend/tests/test_api.py::test_root_and_health PASSED                   [  6%]
+backend/tests/test_api.py::test_samples_endpoint PASSED                  [ 13%]
+backend/tests/test_api.py::test_safety_analysis_json PASSED              [ 20%]
+backend/tests/test_api.py::test_crack_analysis_json PASSED               [ 26%]
+backend/tests/test_api.py::test_planning_generation PASSED               [ 33%]
+backend/tests/test_api.py::test_valuation_calculation PASSED             [ 40%]
+backend/tests/test_api.py::test_daily_log_processing PASSED              [ 46%]
+backend/tests/test_api.py::test_weather_advisory PASSED                  [ 53%]
+backend/tests/test_api.py::test_chat_assistant PASSED                    [ 60%]
+backend/tests/test_vision_heuristics.py::test_iou_calculation_and_person_deduplication PASSED [ 66%]
+backend/tests/test_vision_heuristics.py::test_canonical_osha_hazard_registry PASSED [ 73%]
+backend/tests/test_vision_heuristics.py::test_scene_level_finding_suppression PASSED [ 80%]
+backend/tests/test_vision_heuristics.py::test_empty_scaffold_zero_hazards PASSED [ 86%]
+backend/tests/test_vision_heuristics.py::test_compliant_ground_worker PASSED [ 93%]
+backend/tests/test_vision_heuristics.py::test_non_construction_scene PASSED [100%]
 
-======================= 14 passed in 7.23s ========================
+======================= 15 passed in 6.59s ========================
 ```
 
 ---
