@@ -85,13 +85,13 @@ def generate_fallback_safety_analysis(
             )
         )
 
-    # 2. Compliant Hardhat PPE
+    # 2. Compliant Hardhat PPE (Child detection with short label)
     if target_ppe:
         detections.append(
             DetectionItem(
                 id="det-2",
                 type="ppe",
-                label="PPE",
+                label="Hardhat",
                 severity="OK",
                 confidence=0.96,
                 bbox=BoundingBox(x=0.455, y=0.115, w=0.080, h=0.120)
@@ -107,7 +107,7 @@ def generate_fallback_safety_analysis(
                 label="OSHA 1926.451(g)(1)",
                 severity="Moderate",
                 confidence=0.91,
-                bbox=BoundingBox(x=0.580, y=0.500, w=0.240, h=0.280)
+                bbox=BoundingBox(x=0.580, y=0.420, w=0.250, h=0.360)
             )
         )
         infractions.append(
@@ -120,13 +120,13 @@ def generate_fallback_safety_analysis(
             )
         )
 
-    # 4. Secondary Background Worker (for realistic multi-worker counts)
+    # 4. Secondary Background Worker (Distant / Unverified PPE)
     detections.append(
         DetectionItem(
             id="det-4",
             type="worker",
-            label="Worker 2",
-            severity="OK",
+            label="Worker 2 (Distant)",
+            severity="Unverified",
             confidence=0.94,
             bbox=BoundingBox(x=0.855, y=0.215, w=0.053, h=0.195)
         )

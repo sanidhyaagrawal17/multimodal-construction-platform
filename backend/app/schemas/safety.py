@@ -12,7 +12,7 @@ class DetectionItem(BaseModel):
     id: str
     type: Literal["worker", "hazard", "ppe"]
     label: str
-    severity: Literal["Critical", "High", "Moderate", "Low", "OK"]
+    severity: Literal["Critical", "High", "Moderate", "Low", "OK", "Unverified"]
     confidence: float = Field(..., ge=0.0, le=1.0)
     bbox: BoundingBox
 

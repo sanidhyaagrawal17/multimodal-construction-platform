@@ -18,15 +18,19 @@ const DEFAULT_DETECTIONS = [
     label: "OSHA 1926.501(b)(1)",
     severity: "Critical",
     confidence: 0.98,
-    bbox: { x: 0.375, y: 0.115, w: 0.215, h: 0.845 }
+    bbox: { x: 0.375, y: 0.115, w: 0.215, h: 0.845 },
+    description: "Worker positioned within 18 inches of leading edge at 32.4 ft without active fall arrest tie-off.",
+    infraction_id: "inf-1"
   },
   {
     id: "det-2",
     type: "ppe",
-    label: "PPE",
+    label: "Hardhat",
     severity: "OK",
     confidence: 0.96,
-    bbox: { x: 0.455, y: 0.115, w: 0.080, h: 0.120 }
+    bbox: { x: 0.455, y: 0.115, w: 0.080, h: 0.120 },
+    description: "ANSI Z89.1 Type I industrial hardhat worn securely.",
+    infraction_id: null
   },
   {
     id: "det-3",
@@ -34,17 +38,123 @@ const DEFAULT_DETECTIONS = [
     label: "OSHA 1926.451(g)(1)",
     severity: "Moderate",
     confidence: 0.91,
-    bbox: { x: 0.580, y: 0.500, w: 0.240, h: 0.280 }
+    bbox: { x: 0.580, y: 0.420, w: 0.250, h: 0.360 },
+    description: "Perimeter midrail missing between vertical standards. Missing outward-facing 3.5\" toeboard.",
+    infraction_id: "inf-2"
   },
   {
     id: "det-4",
     type: "worker",
-    label: "Worker 2",
-    severity: "OK",
+    label: "Worker 2 (Distant)",
+    severity: "Unverified",
     confidence: 0.94,
-    bbox: { x: 0.855, y: 0.215, w: 0.053, h: 0.195 }
+    bbox: { x: 0.855, y: 0.215, w: 0.053, h: 0.195 },
+    description: "Secondary worker located >60ft away on deck. Distance exceeds optical resolution for tie-off verification.",
+    infraction_id: null
   }
 ];
+
+const SEVERITY_ORDER = { Critical: 4, High: 3, Moderate: 2, Low: 1, OK: 0, Unverified: 0 };
+
+/**
+ * Deterministic label collision resolution algorithm:
+ * 1. Process detections in descending severity (Critical first)
+ * 2. Try positions in order: above, below, inside-bottom, inside-top
+ * 3. Choose first position that stays inside image bounds without overlapping any placed label
+ */
+function computeLabelPlacements(detections) {
+  const sorted = [...detections].sort((a, b) => {
+    const pA = SEVERITY_ORDER[a.severity] ?? 0;
+    const pB = SEVERITY_ORDER[b.severity] ?? 0;
+    return pB - pA;
+  });
+
+  const placedRects = [];
+  const placementMap = {};
+
+  for (const det of sorted) {
+    const { x, y, w, h } = det.bbox;
+    const isPpeChild = det.type === 'ppe' || w < 0.10;
+    const isShortLabel = isPpeChild || det.severity === 'Unverified';
+    const labelW = isShortLabel ? 0.09 : 0.23;
+    const labelH = 0.038;
+
+    const alignRight = (x + labelW) > 0.98 || (x + w > 0.85);
+    const labelX = alignRight ? Math.max(0, x + w - labelW) : x;
+
+    // Ordered candidate positions
+    let candidatePositions;
+    if (isPpeChild) {
+      // Child PPE labels anchor inside bottom-left or below to never collide with top parent label
+      candidatePositions = [
+        { name: 'inside-bottom', topOffset: y + h - labelH - 0.005, className: 'bottom-1 left-1' },
+        { name: 'below', topOffset: y + h + 0.005, className: 'top-full mt-1 left-0' },
+        { name: 'inside-top', topOffset: y + 0.005, className: 'top-1 left-1' },
+        { name: 'above', topOffset: y - labelH - 0.005, className: '-top-6 left-0' },
+      ];
+    } else {
+      // Parent/hazard labels prefer above, then below, then inside-top
+      candidatePositions = [
+        { 
+          name: 'above', 
+          topOffset: y - labelH - 0.005, 
+          className: `-top-6 ${alignRight ? 'right-0' : 'left-0'}` 
+        },
+        { 
+          name: 'below', 
+          topOffset: y + h + 0.005, 
+          className: `top-full mt-1 ${alignRight ? 'right-0' : 'left-0'}` 
+        },
+        { 
+          name: 'inside-top', 
+          topOffset: y + 0.005, 
+          className: `top-1 ${alignRight ? 'right-1' : 'left-1'}` 
+        },
+      ];
+    }
+
+    let chosen = null;
+    for (const cand of candidatePositions) {
+      if (cand.topOffset < 0 || (cand.topOffset + labelH) > 1.0) continue;
+
+      const candRect = {
+        x1: labelX,
+        y1: cand.topOffset,
+        x2: labelX + labelW,
+        y2: cand.topOffset + labelH,
+      };
+
+      const hasCollision = placedRects.some(placed => {
+        return !(
+          candRect.x2 <= placed.x1 ||
+          candRect.x1 >= placed.x2 ||
+          candRect.y2 <= placed.y1 ||
+          candRect.y1 >= placed.y2
+        );
+      });
+
+      if (!hasCollision) {
+        chosen = { ...cand, rect: candRect };
+        break;
+      }
+    }
+
+    if (!chosen) {
+      chosen = candidatePositions[0];
+      chosen.rect = {
+        x1: labelX,
+        y1: chosen.topOffset,
+        x2: labelX + labelW,
+        y2: chosen.topOffset + labelH,
+      };
+    }
+
+    placedRects.push(chosen.rect);
+    placementMap[det.id] = chosen.className;
+  }
+
+  return placementMap;
+}
 
 const DEFAULT_INFRACTIONS = [
   {
@@ -194,34 +304,49 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
     }
   };
 
-  // Severity style helper
-  const getBoxStyle = (severity) => {
+  const [hoveredDetId, setHoveredDetId] = useState(null);
+
+  // Severity style helper with high-contrast text and shadows
+  const getBoxStyle = (severity, isHovered) => {
+    const hoverGlow = isHovered 
+      ? 'ring-2 ring-white/70 shadow-xl shadow-black/80 z-30 brightness-110' 
+      : 'z-10';
+
     switch (severity) {
       case 'Critical':
         return {
-          border: 'border-2 border-rose-500 bg-rose-500/10',
-          badge: 'bg-rose-600 text-white',
+          border: `border-2 border-rose-500 bg-rose-500/10 ${hoverGlow}`,
+          badge: 'bg-rose-600/95 text-white font-mono text-[11px] font-bold px-1.5 py-0.5 rounded-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.85)] border border-rose-400/40 tracking-tight backdrop-blur-sm',
         };
       case 'High':
         return {
-          border: 'border-2 border-orange-500 bg-orange-500/10',
-          badge: 'bg-orange-600 text-white',
+          border: `border-2 border-orange-500 bg-orange-500/10 ${hoverGlow}`,
+          badge: 'bg-orange-600/95 text-white font-mono text-[11px] font-bold px-1.5 py-0.5 rounded-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.85)] border border-orange-400/40 tracking-tight backdrop-blur-sm',
         };
       case 'Moderate':
         return {
-          border: 'border-2 border-[#eab308] bg-[#eab308]/10',
-          badge: 'bg-[#eab308] text-black',
+          border: `border-2 border-amber-400 bg-amber-400/10 ${hoverGlow}`,
+          // High contrast: deep black font on vivid yellow with dark drop-shadow to stand out over sky
+          badge: 'bg-[#facc15] text-zinc-950 font-mono text-[11px] font-bold px-1.5 py-0.5 rounded-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.85)] border border-amber-500/80 tracking-tight drop-shadow-sm',
+        };
+      case 'Unverified':
+        return {
+          border: `border-2 border-slate-500/70 bg-slate-500/10 ${hoverGlow}`,
+          badge: 'bg-[#182234]/95 text-zinc-300 font-mono text-[11px] font-semibold px-1.5 py-0.5 rounded-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.8)] border border-[#2d3e5f] tracking-tight backdrop-blur-sm',
         };
       default:
         return {
-          border: 'border-2 border-emerald-400 bg-emerald-400/10',
-          badge: 'bg-emerald-500 text-black',
+          border: `border-2 border-emerald-400 bg-emerald-400/10 ${hoverGlow}`,
+          badge: 'bg-emerald-600/95 text-white font-mono text-[11px] font-bold px-1.5 py-0.5 rounded-[2px] shadow-[0_2px_4px_rgba(0,0,0,0.85)] border border-emerald-400/40 tracking-tight backdrop-blur-sm',
         };
     }
   };
 
-  // Bug 1 fix: Single detections array only
+  // Single detections array only
   const activeDetections = (uiState === 'results' && !loading) ? (data.detections || []) : [];
+
+  // Collision-free label placements computed deterministically
+  const labelPlacements = computeLabelPlacements(activeDetections);
 
   // Derived counts from single detections array
   const activeWorkersCount = activeDetections.filter(d => d.type === 'worker').length || data.workers_detected || 2;
@@ -440,17 +565,25 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
               className="w-full h-auto block object-cover"
             />
 
-            {/* Bug 1 & 2 & 4 fix: Render from ONE detections array only with normalized % coordinates and edge flip */}
+            {/* Collision-Free Detections Layer with Tooltips and Hover States */}
             {activeDetections.map((det) => {
-              const style = getBoxStyle(det.severity);
-              // Bug 4 fix: flip label below box if near top, right-align if near right
-              const flipY = det.bbox.y < 0.08;
-              const flipX = (det.bbox.x + det.bbox.w) > 0.85;
+              const isHovered = hoveredDetId === det.id || (det.infraction_id && hoveredDetId === det.infraction_id);
+              const style = getBoxStyle(det.severity, isHovered);
+              const placementClass = labelPlacements[det.id] || '-top-6 left-0';
+              
+              // Concise labels: nested parts (hardhat) use short label without %, distant worker notes unverified
+              const labelText = det.type === 'ppe'
+                ? `${det.label} • ${det.severity}`
+                : det.severity === 'Unverified'
+                  ? `${det.label} • Unverified`
+                  : `${det.label} • ${det.severity} • ${Math.round(det.confidence * 100)}%`;
 
               return (
                 <div
                   key={det.id}
-                  className={`absolute pointer-events-none ${style.border}`}
+                  onMouseEnter={() => setHoveredDetId(det.id)}
+                  onMouseLeave={() => setHoveredDetId(null)}
+                  className={`absolute pointer-events-auto cursor-pointer transition-all duration-150 ${style.border}`}
                   style={{
                     left: `${det.bbox.x * 100}%`,
                     top: `${det.bbox.y * 100}%`,
@@ -458,16 +591,31 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
                     height: `${det.bbox.h * 100}%`,
                   }}
                 >
-                  {/* Bug 2 fix: Fixed 11px font in CSS */}
+                  {/* Fixed 11px font badge placed with deterministic collision-free positioning */}
                   <span
-                    className={`absolute text-[11px] font-mono font-bold leading-none py-1 px-1.5 whitespace-nowrap shadow-md ${style.badge} ${
-                      flipY ? 'top-full mt-0.5' : '-top-5'
-                    } ${
-                      flipX ? 'right-0' : 'left-0'
-                    }`}
+                    className={`absolute text-[11px] font-mono font-bold leading-none py-1 px-1.5 whitespace-nowrap ${style.badge} ${placementClass}`}
                   >
-                    {det.label} • {det.severity} • {Math.round(det.confidence * 100)}%
+                    {labelText}
                   </span>
+
+                  {/* Interactive Finding Tooltip on Hover */}
+                  {isHovered && (
+                    <div className="absolute top-full mt-2 left-0 z-40 w-64 p-2.5 rounded bg-[#0b101d]/95 backdrop-blur-md border border-[#2b3d63] shadow-2xl text-[11px] text-zinc-200 pointer-events-none space-y-1">
+                      <div className="flex items-center justify-between font-mono font-bold">
+                        <span className={
+                          det.severity === 'Critical' ? 'text-rose-400' :
+                          det.severity === 'Moderate' ? 'text-[#eab308]' :
+                          det.severity === 'Unverified' ? 'text-zinc-400' : 'text-emerald-400'
+                        }>
+                          {det.label}
+                        </span>
+                        <span className="text-[10px] text-zinc-400">{Math.round(det.confidence * 100)}% Conf.</span>
+                      </div>
+                      <p className="text-zinc-300 text-[10px] leading-tight font-sans">
+                        {det.description || "Active object detection identified by OSHA vision inference."}
+                      </p>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -500,27 +648,35 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
           </div>
 
           {/* Bottom Detection Stats Strip - Derived from detections */}
-          <div className="px-4 py-2.5 bg-[#0a0f1d] border-t border-[#1c263c] flex flex-wrap items-center gap-6 text-xs font-medium">
-            <div className="flex items-center space-x-2">
-              <span className="text-zinc-400">Workers Detected:</span>
-              <span className="px-2 py-0.5 rounded bg-[#131d31] border border-[#20304f] font-mono text-[11px] text-white">
-                {activeWorkersCount} Active
-              </span>
+          <div className="px-4 py-2.5 bg-[#0a0f1d] border-t border-[#1c263c] flex flex-wrap items-center justify-between text-xs font-medium">
+            <div className="flex flex-wrap items-center gap-6">
+              <div className="flex items-center space-x-2">
+                <span className="text-zinc-400">Workers Detected:</span>
+                <span className="px-2 py-0.5 rounded bg-[#131d31] border border-[#20304f] font-mono text-[11px] text-white">
+                  {activeWorkersCount} Active
+                </span>
+              </div>
+
+              <div 
+                className="flex items-center space-x-2 cursor-help"
+                title="1 of 2 workers assessed with verified tie-off (Worker 1 missing tie-off, Worker 2 distant/unverified)"
+              >
+                <span className="text-zinc-400">PPE Compliance:</span>
+                <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[11px] text-[#fde047]">
+                  {data.ppe_compliance_pct}% Warning
+                </span>
+                <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline">(1 assessed / 1 distant)</span>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <span className="text-zinc-400">Hazards Found:</span>
+                <span className="px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 font-mono text-[11px] text-rose-400">
+                  {activeHazardsCount} Detected
+                </span>
+              </div>
             </div>
 
-            <div className="flex items-center space-x-2">
-              <span className="text-zinc-400">PPE Compliance:</span>
-              <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[11px] text-[#fde047]">
-                {data.ppe_compliance_pct}% Warning
-              </span>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <span className="text-zinc-400">Hazards Found:</span>
-              <span className="px-2 py-0.5 rounded bg-rose-500/15 border border-rose-500/30 font-mono text-[11px] text-rose-400">
-                {activeHazardsCount} Detected
-              </span>
-            </div>
+            <span className="text-[10px] text-zinc-500 font-mono hidden md:inline">Hover box or infraction for details</span>
           </div>
         </div>
 
@@ -586,31 +742,41 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
             </div>
 
             <div className="space-y-2.5">
-              {data.infractions.map((inf) => (
-                <div
-                  key={inf.id}
-                  className={`p-3 rounded-md space-y-1.5 ${
-                    inf.severity === 'CRITICAL'
-                      ? 'bg-[#131722] border border-rose-900/40'
-                      : 'bg-[#161a24] border border-amber-900/40'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
-                        inf.severity === 'CRITICAL'
-                          ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
-                          : 'bg-amber-500/20 text-[#fde047] border border-amber-500/40'
-                      }`}>
-                        {inf.severity}
-                      </span>
-                      <span className="font-mono text-xs font-bold text-white">{inf.osha_standard}</span>
+              {data.infractions.map((inf) => {
+                const isHighlighted = hoveredDetId === inf.id || (inf.id === 'inf-1' && hoveredDetId === 'det-1') || (inf.id === 'inf-2' && hoveredDetId === 'det-3');
+
+                return (
+                  <div
+                    key={inf.id}
+                    onMouseEnter={() => setHoveredDetId(inf.id === 'inf-1' ? 'det-1' : 'det-3')}
+                    onMouseLeave={() => setHoveredDetId(null)}
+                    className={`p-3 rounded-md space-y-1.5 transition-all cursor-pointer ${
+                      isHighlighted
+                        ? inf.severity === 'CRITICAL'
+                          ? 'bg-[#1b1c2b] border-2 border-rose-500 shadow-md shadow-rose-950/60 ring-1 ring-rose-500/40'
+                          : 'bg-[#22201d] border-2 border-amber-400 shadow-md shadow-amber-950/60 ring-1 ring-amber-400/40'
+                        : inf.severity === 'CRITICAL'
+                          ? 'bg-[#131722] border border-rose-900/40 hover:border-rose-700/60'
+                          : 'bg-[#161a24] border border-amber-900/40 hover:border-amber-700/60'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-mono font-bold ${
+                          inf.severity === 'CRITICAL'
+                            ? 'bg-rose-500/20 text-rose-400 border border-rose-500/40'
+                            : 'bg-amber-500/20 text-[#fde047] border border-amber-500/40'
+                        }`}>
+                          {inf.severity}
+                        </span>
+                        <span className="font-mono text-xs font-bold text-white">{inf.osha_standard}</span>
+                      </div>
+                      <span className="text-[11px] font-mono text-zinc-500">{inf.location}</span>
                     </div>
-                    <span className="text-[11px] font-mono text-zinc-500">{inf.location}</span>
+                    <p className="text-xs text-zinc-300 leading-relaxed">{inf.description}</p>
                   </div>
-                  <p className="text-xs text-zinc-300 leading-relaxed">{inf.description}</p>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
