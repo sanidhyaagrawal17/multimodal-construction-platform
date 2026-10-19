@@ -36,6 +36,7 @@ dist/
 .env
 .env.local
 .env.*.local
+.streamlit/secrets.toml
 *.pem
 *.key
 
