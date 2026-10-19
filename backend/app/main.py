@@ -53,8 +53,9 @@ async def health_check():
         "timestamp": datetime.utcnow().isoformat()
     }
 
-# Include API v1 routes
+# Include API v1 and convenience alias routes
 app.include_router(api_v1_router, prefix=settings.API_V1_PREFIX)
+app.include_router(api_v1_router, prefix="/api")
 
 # Global Exception Handler
 @app.exception_handler(Exception)

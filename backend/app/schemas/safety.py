@@ -1,5 +1,5 @@
 from typing import List, Optional, Literal
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import datetime
 
 class BoundingBox(BaseModel):
@@ -8,6 +8,15 @@ class BoundingBox(BaseModel):
     w: float = Field(..., ge=0.0, le=1.0, description="Normalized box width (0.0 to 1.0)")
     h: float = Field(..., ge=0.0, le=1.0, description="Normalized box height (0.0 to 1.0)")
 
+    @field_validator("x", "y", "w", "h", mode="before")
+    @classmethod
+    def clamp_normalized(cls, v):
+        try:
+            val = float(v)
+            return max(0.0, min(1.0, val))
+        except (ValueError, TypeError):
+            return 0.0
+
 class DetectionItem(BaseModel):
     id: str
     type: Literal["worker", "hazard", "ppe"]
@@ -15,6 +24,9 @@ class DetectionItem(BaseModel):
     severity: Literal["Critical", "High", "Moderate", "Low", "OK", "Unverified"]
     confidence: float = Field(..., ge=0.0, le=1.0)
     bbox: BoundingBox
+    verifiable: bool = Field(default=True, description="False for distant or occluded subjects where safety gear cannot be evaluated")
+    description: Optional[str] = Field(default=None, description="Detailed explanation of finding")
+    infraction_id: Optional[str] = Field(default=None, description="Linked infraction ID if applicable")
 
 class InfractionItem(BaseModel):
     id: str

@@ -74,26 +74,26 @@ function computeLabelPlacements(detections) {
 
   for (const det of sorted) {
     const { x, y, w, h } = det.bbox;
-    const isPpeChild = det.type === 'ppe' || w < 0.10;
+    const isPpeChild = det.type === 'ppe';
     const isShortLabel = isPpeChild || det.severity === 'Unverified';
-    const labelW = isShortLabel ? 0.09 : 0.23;
+    const labelW = isShortLabel ? 0.12 : 0.23;
     const labelH = 0.038;
 
-    const alignRight = (x + labelW) > 0.98 || (x + w > 0.85);
+    // Right-edge clamp: if box or label would overflow right margin, anchor right-edge to box right-edge
+    const alignRight = (x + labelW) > 0.88 || (x + w > 0.80);
     const labelX = alignRight ? Math.max(0, x + w - labelW) : x;
 
     // Ordered candidate positions
     let candidatePositions;
     if (isPpeChild) {
-      // Child PPE labels anchor inside bottom-left or below to never collide with top parent label
+      // Hardhat PPE: anchor to the right of the head box so it never covers the worker's face or chin
       candidatePositions = [
-        { name: 'inside-bottom', topOffset: y + h - labelH - 0.005, className: 'bottom-1 left-1' },
+        { name: 'right', topOffset: y, className: 'top-0 left-full ml-1.5' },
+        { name: 'inside-bottom', topOffset: y + h - labelH - 0.005, className: 'bottom-0.5 right-0.5' },
         { name: 'below', topOffset: y + h + 0.005, className: 'top-full mt-1 left-0' },
-        { name: 'inside-top', topOffset: y + 0.005, className: 'top-1 left-1' },
-        { name: 'above', topOffset: y - labelH - 0.005, className: '-top-6 left-0' },
       ];
     } else {
-      // Parent/hazard labels prefer above, then below, then inside-top
+      // Parent/hazard/worker labels prefer above, then below, then inside-top, respecting alignRight
       candidatePositions = [
         { 
           name: 'above', 
@@ -659,13 +659,13 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
 
               <div 
                 className="flex items-center space-x-2 cursor-help"
-                title="1 of 2 workers assessed with verified tie-off (Worker 1 missing tie-off, Worker 2 distant/unverified)"
+                title="1 of 2 assessable workers verified with tie-off (Worker 1 missing tie-off, Worker 2 distant/unverified)"
               >
                 <span className="text-zinc-400">PPE Compliance:</span>
                 <span className="px-2 py-0.5 rounded bg-amber-500/15 border border-amber-500/30 font-mono text-[11px] text-[#fde047]">
                   {data.ppe_compliance_pct}% Warning
                 </span>
-                <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline">(1 assessed / 1 distant)</span>
+                <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline">(1 of 2 assessable workers)</span>
               </div>
 
               <div className="flex items-center space-x-2">
