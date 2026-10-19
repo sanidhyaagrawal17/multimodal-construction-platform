@@ -187,7 +187,7 @@ def draw_dynamic_annotations(base_image, detections):
         img = base_image.copy()
 
     draw = ImageDraw.Draw(img)
-    w, h = img.size
+    canvas_w, canvas_h = img.size
 
     for d in detections:
         # Universal bounding box coordinate extractor
@@ -203,26 +203,26 @@ def draw_dynamic_annotations(base_image, detections):
         else:
             bbox = d.get("bbox", {})
             if isinstance(bbox, dict):
-                x1 = float(bbox.get("x", bbox.get("x1", bbox.get("xmin", 0.0))))
-                y1 = float(bbox.get("y", bbox.get("y1", bbox.get("ymin", 0.0))))
+                x1_raw = float(bbox.get("x", bbox.get("x1", bbox.get("xmin", 0.0))))
+                y1_raw = float(bbox.get("y", bbox.get("y1", bbox.get("ymin", 0.0))))
                 if "x2" in bbox or "xmax" in bbox:
-                    x2 = float(bbox.get("x2", bbox.get("xmax", x1 + 100.0)))
-                    y2 = float(bbox.get("y2", bbox.get("ymax", y1 + 100.0)))
-                    if x1 > 1.0 or y1 > 1.0 or x2 > 1.0 or y2 > 1.0:
-                        x1, y1, x2, y2 = x1 / 1000.0, y1 / 1000.0, x2 / 1000.0, y2 / 1000.0
-                    bx = min(x1, x2)
-                    by = min(y1, y2)
-                    bw = max(0.01, abs(x2 - x1))
-                    bh = max(0.01, abs(y2 - y1))
+                    x2_raw = float(bbox.get("x2", bbox.get("xmax", x1_raw + 100.0)))
+                    y2_raw = float(bbox.get("y2", bbox.get("ymax", y1_raw + 100.0)))
+                    if x1_raw > 1.0 or y1_raw > 1.0 or x2_raw > 1.0 or y2_raw > 1.0:
+                        x1_raw, y1_raw, x2_raw, y2_raw = x1_raw / 1000.0, y1_raw / 1000.0, x2_raw / 1000.0, y2_raw / 1000.0
+                    bx = min(x1_raw, x2_raw)
+                    by = min(y1_raw, y2_raw)
+                    bw = max(0.01, abs(x2_raw - x1_raw))
+                    bh = max(0.01, abs(y2_raw - y1_raw))
                 else:
-                    w = float(bbox.get("w", bbox.get("width", 100.0)))
-                    h = float(bbox.get("h", bbox.get("height", 100.0)))
-                    if x1 > 1.0 or y1 > 1.0 or w > 1.0 or h > 1.0:
-                        x1, y1, w, h = x1 / 1000.0, y1 / 1000.0, w / 1000.0, h / 1000.0
-                    bx = x1
-                    by = y1
-                    bw = max(0.01, w)
-                    bh = max(0.01, h)
+                    box_w = float(bbox.get("w", bbox.get("width", 100.0)))
+                    box_h = float(bbox.get("h", bbox.get("height", 100.0)))
+                    if x1_raw > 1.0 or y1_raw > 1.0 or box_w > 1.0 or box_h > 1.0:
+                        x1_raw, y1_raw, box_w, box_h = x1_raw / 1000.0, y1_raw / 1000.0, box_w / 1000.0, box_h / 1000.0
+                    bx = x1_raw
+                    by = y1_raw
+                    bw = max(0.01, box_w)
+                    bh = max(0.01, box_h)
 
         # Clamp normalized coordinates to [0.0, 1.0]
         bx = max(0.0, min(0.98, bx))
@@ -230,8 +230,9 @@ def draw_dynamic_annotations(base_image, detections):
         bw = max(0.01, min(1.0 - bx, bw))
         bh = max(0.01, min(1.0 - by, bh))
 
-        x1, y1 = int(bx * w), int(by * h)
-        x2, y2 = int((bx + bw) * w), int((by + bh) * h)
+        # Calculate absolute pixel coordinates on canvas
+        px1, py1 = int(bx * canvas_w), int(by * canvas_h)
+        px2, py2 = int((bx + bw) * canvas_w), int((by + bh) * canvas_h)
 
         dtype = d.get("type", "worker")
         severity = d.get("severity", "Moderate")
@@ -254,11 +255,11 @@ def draw_dynamic_annotations(base_image, detections):
             fill_col = (234, 179, 8)
             txt_col = (0, 0, 0)
 
-        draw.rectangle([x1, y1, x2, y2], outline=outline_col, width=3)
+        draw.rectangle([px1, py1, px2, py2], outline=outline_col, width=3)
         tag = f"{label} · {severity}"
-        tag_width = min(w - x1, len(tag) * 9 + 12)
-        draw.rectangle([x1, max(0, y1 - 22), x1 + tag_width, y1], fill=fill_col)
-        draw.text((x1 + 6, max(0, y1 - 18)), tag, fill=txt_col)
+        tag_width = min(canvas_w - px1, len(tag) * 9 + 12)
+        draw.rectangle([px1, max(0, py1 - 22), px1 + tag_width, py1], fill=fill_col)
+        draw.text((px1 + 6, max(0, py1 - 18)), tag, fill=txt_col)
 
     return img
 
