@@ -4,63 +4,70 @@
 [![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18.2+-61DAFB.svg)](https://react.dev/)
-[![Google Gemini](https://img.shields.io/badge/Google_Gemini-Free_Tier_(Flash_Lite)-4285F4.svg)](https://deepmind.google/technologies/gemini/)
+[![Google Gemini](https://img.shields.io/badge/Google_Gemini-Free_Tier_(Flash)-4285F4.svg)](https://ai.google.dev/)
 [![Standards](https://img.shields.io/badge/Compliance-OSHA_1926_|_ACI_318-orange.svg)](https://www.osha.gov/laws-regs/regulations/standardnumber/1926)
-[![Tests](https://img.shields.io/badge/Tests-9_Passed_100%25-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-14_Passed_100%25-brightgreen.svg)]()
 
-> A full-stack, enterprise-grade decision-support system designed to assist construction professionals across planning, execution, and monitoring. Fusing multimodal Artificial Intelligence (Google Gemini Free Tier) with deterministic civil engineering heuristics, the platform analyzes site photos, structural imagery, and project parameters to deliver actionable, code-grounded insights.
+> A full-stack decision-support platform designed to assist construction field supervisors, civil engineers, and safety auditors across planning, execution, and monitoring. Fusing multimodal Artificial Intelligence (Google Gemini free-tier vision endpoints) with deterministic civil engineering heuristics, the platform analyzes site photos, structural imagery, and project parameters to deliver actionable, code-grounded insights.
+
+![Platform Overview](docs/assets/screenshot.png)
+
+---
+
+## ⚡ Two Ways to Run the Platform
+
+| Mode | Technology | Primary Use Case | Quick Access |
+| :--- | :--- | :--- | :--- |
+| **1. Streamlit Live App (`app.py`)** | Streamlit + Gemini Vision + Python PIL | **Recommended for quick grading and evaluator demos.** Zero-configuration interactive web app with live camera paste, canvas overlays, and 1-click clipboard export. | **[Live Demo URL](https://construction-intelligence-ai.streamlit.app)** or `streamlit run app.py` |
+| **2. Modular Full-Stack (`backend/` + `frontend/`)** | FastAPI + React 18 + Vite + Docker Compose | **Recommended for modular microservice inspection.** RESTful API contracts (OpenAPI/Swagger), Pydantic v2 data serialization, and Vite dark-mode interface. | `docker compose up` or `.\start_dev.bat` |
 
 ---
 
 ## 📑 Table of Contents
 1. [Project Overview & Core Features](#-project-overview--core-features)
-2. [Technical Architecture](#-technical-architecture)
+2. [Dual Architecture & Technical Layout](#-dual-architecture--technical-layout)
 3. [Curriculum & Epics Traceability Matrix](#-curriculum--epics-traceability-matrix)
-4. [Prerequisites & System Requirements](#-prerequisites--system-requirements)
-5. [Quick Start Guide (Local Setup)](#-quick-start-guide-local-setup)
-6. [Containerized Deployment (Docker Compose)](#-containerized-deployment-docker-compose)
-7. [API Documentation & Data Contracts](#-api-documentation--data-contracts)
-8. [Mentor & Evaluator Demo Walkthrough](#-mentor--evaluator-demo-walkthrough)
-9. [Automated Verification & Test Suite](#-automated-verification--test-suite)
-10. [Civil Engineering & Safety Standards Grounding](#-civil-engineering--safety-standards-grounding)
+4. [Quick Start Guide](#-quick-start-guide)
+5. [Mentor & Evaluator Demo Walkthrough](#-mentor--evaluator-demo-walkthrough)
+6. [Automated Verification & Test Suite](#-automated-verification--test-suite)
+7. [Civil Engineering & Safety Standards Grounding](#-civil-engineering--safety-standards-grounding)
+8. [Engineering Limitations & Human-in-the-Loop Principles](#-engineering-limitations--human-in-the-loop-principles)
 
 ---
 
 ## 🏗️ Project Overview & Core Features
 
-Traditional construction management relies heavily on manual supervision, static paper documentation, and experience-based judgments. These methods frequently cause costly rework, undetected safety infractions, and scheduling delays.
+Traditional site supervision relies heavily on manual inspections, paper documentation, and subjective field checks. These methods can lead to undetected fall infractions, delayed structural remediation, and scheduling friction.
 
-The **Multimodal Construction Intelligence Platform** solves these bottlenecks through seven integrated intelligence modules:
+The **Multimodal Construction Intelligence Platform** assists site teams through five integrated modules:
 
-1. **Site Safety Inspector (OSHA 1926)**:
-   - Multimodal vision analysis auditing worker Personal Protective Equipment (Hardhats, High-Vis Vests, Fall Arrest Harnesses, Steel-toe Boots, Eye Protection).
-   - Automated detection of open floor edges, scaffolding deficiencies, tripping debris, and excavation hazards.
-   - Computes a 0–100 Safety Compliance Score and generates prioritized immediate corrective actions.
-2. **Structural Crack & Forensic Analyzer (ACI 318)**:
-   - Classifies crack morphology into Shear Cracks (45° diagonal), Flexural Cracks, Settlement Cracks, and Thermal Shrinkage.
-   - Estimates crack width (mm), evaluates structural failure risk, and provides step-by-step remediation protocols (epoxy pressure injection, carbon-fiber CFRP wraps, foundation underpinning).
+1. **Site Safety Inspector (OSHA 29 CFR 1926)**:
+   - Multimodal vision inspection identifying workers, verifying head protection (OSHA 1926.100), and evaluating elevated scaffold platforms (OSHA 1926.451).
+   - Enforces **Dual-Criteria Fall Protection Parity**: per 29 CFR 1926.451(g)(1)(vii), employees on supported frame scaffolds >10 ft must be protected by *either* personal fall arrest systems (PFAS) *or* compliant guardrails. Missing lanyards are flagged specifically when guardrails are also absent.
+   - Computes deterministic, reproducible hazard scores (0–100) and prioritized corrective protocols.
+2. **Structural Crack & Forensic Analyzer (ACI 318 / ACI 224R)**:
+   - Classifies crack morphology into Shear Cracks (45° diagonal tension near supports), Flexural Midspan Cracks, Settlement Cracks, and Thermal Shrinkage.
+   - Estimates crack width (mm) against ACI 224R tolerable limits (0.40 mm interior, 0.30 mm exterior) and outputs step-by-step remediation protocols (low-viscosity epoxy injection, CFRP composite wrapping, temporary hydraulic shoring).
 3. **Construction Project Planner (CPM & WBS)**:
-   - Synthesizes 5-stage Work Breakdown Structures (WBS) with Critical Path Method (CPM) sequencing, manpower sizing, milestone schedules, and budget allocations.
+   - Synthesizes 5-stage Work Breakdown Structures (WBS) with Critical Path Method (CPM) sequencing, milestone schedules, and manpower sizing.
    - Formulates a 4-point risk contingency mitigation matrix.
 4. **Real Estate Valuation & Investment Engine**:
    - Hedonic appraisal model combining construction replacement cost, land equity share, and developer margin.
    - Computes investor yield metrics: Monthly Rental Forecast, Gross Rental Yield (%), Net Capitalization Rate (Cap Rate %), and 5-Year Capital Appreciation.
-5. **Daily Site Assistant & Punch List Generator**:
-   - Parses unstructured superintendent field notes into an executive briefing.
-   - Identifies concrete transit delays, craft absenteeism, and flags safety defects.
-   - Outputs an automated, prioritized next-day trade punch list.
-6. **Weather-Aware Construction Risk Advisory**:
-   - Meteorological risk matrix evaluating ambient temperature, humidity, wind velocity, rain probability, and UV index.
-   - Issues trade-specific workability statuses (Safe, Caution, Unsafe) across Concrete Pouring (ACI 305R/306R), Tower Cranes (OSHA wind limits), Painting/Waterproofing, Deep Excavation, and Roofing.
-7. **Construction Knowledge Assistant (Chatbot)**:
+5. **Weather-Aware Risk Advisory & Daily Site Assistant**:
+   - Meteorological risk matrix evaluating ambient temperature, humidity, wind velocity, rain probability, and UV index against trade workability limits (ACI 305R/306R concrete limits, OSHA crane wind halts).
+   - Converts unstructured superintendent field notes into executive briefings, delay tracking, and next-day punch lists.
+6. **Construction Knowledge Assistant (Chatbot)**:
    - Multi-turn conversational AI grounded in structural concrete, building codes, ASTM testing standards, and site troubleshooting.
 
 ---
 
-## 🏛️ Technical Architecture
+## 🏛️ Dual Architecture & Technical Layout
 
 ```
 multimodal-construction-platform/
+├── app.py                   # Streamlit live application (interactive unified console)
+├── sample_scaffold.jpg      # Synthetic benchmarking photograph for scaffolding safety evaluation
 ├── backend/
 │   ├── app/
 │   │   ├── api/v1/          # RESTful routers (safety, crack, planning, valuation, daily-log, weather, chat, samples)
@@ -69,12 +76,15 @@ multimodal-construction-platform/
 │   │   ├── utils/           # In-memory image processing & synthetic scenario generators
 │   │   ├── config.py        # Centralized settings & environment bindings
 │   │   └── main.py          # FastAPI application entrypoint with CORS & error handlers
-│   ├── tests/               # Pytest automated test suite (9 integration tests)
+│   ├── tests/               # Pytest automated test suite (14 unit & integration tests)
+│   │   ├── test_api.py               # REST API route integration tests (9 tests)
+│   │   ├── test_vision_heuristics.py # IoU deduplication, OSHA registry, and edge-case unit tests (5 tests)
+│   │   └── verify_live_endpoints.py  # Manual HTTP endpoint testing utility
 │   ├── requirements.txt     # Python backend dependencies
 │   └── Dockerfile           # Backend container specification
 ├── frontend/
 │   ├── src/
-│   │   ├── components/      # Sleek Linear/Vercel-styled UI modules
+│   │   ├── components/      # Minimalist React UI modules (Linear/Vercel style)
 │   │   ├── api/             # Frontend fetch client connecting to FastAPI v1
 │   │   ├── App.jsx          # Tab router & state manager
 │   │   ├── index.css        # Tailwind styling & dark mode tokens
@@ -82,10 +92,11 @@ multimodal-construction-platform/
 │   ├── package.json         # React 18, Vite 5, Tailwind CSS, Lucide icons
 │   └── Dockerfile           # Multi-stage Nginx production container
 ├── docs/
-│   ├── REQUIREMENTS.md      # Activity 1.1: Functional Requirements Specification
-│   ├── ARCHITECTURE.md      # System diagrams, component maps, and sequences
+│   ├── assets/              # Interface screenshots and diagram graphics
+│   ├── REQUIREMENTS.md      # Functional requirements & curriculum traceability
+│   ├── ARCHITECTURE.md      # System architecture & sequence diagrams
 │   └── API_SPECIFICATION.md # Complete REST contract documentation
-├── docker-compose.yml       # 1-command containerized stack orchestrator
+├── docker-compose.yml       # Multi-container stack orchestrator
 ├── start_dev.bat            # Windows 1-click startup script
 ├── start_dev.sh             # Linux/macOS 1-click startup script
 └── README.md                # System documentation
@@ -95,158 +106,109 @@ multimodal-construction-platform/
 
 ## 📋 Curriculum & Epics Traceability Matrix
 
-| Curriculum Epic | Assigned Activity | Platform Implementation Component | Verification Status |
-| :--- | :--- | :--- | :--- |
+| Curriculum Epic | Assigned Activity | Implementation Component | Verification Status |
+| :--- | :--- | :--- | :---: |
 | **Epic 1** | Activity 1.1: Functional Requirements | `docs/REQUIREMENTS.md` | Completed & Documented |
 | **Epic 1** | Activity 1.2: Environment Setup | `backend/requirements.txt`, `backend/.venv` | Installed & Verified |
-| **Epic 2** | Activity 2.1: Safety Image Analysis | `backend/app/services/safety_service.py`, `SafetyInspector.jsx` | Tested (100% Pass) |
-| **Epic 2** | Activity 2.2: Crack Detection Logic | `backend/app/services/crack_service.py`, `CrackAnalyzer.jsx` | Tested (100% Pass) |
-| **Epic 3** | Activity 3.1: Construction Planning | `backend/app/services/planning_service.py`, `ProjectPlanner.jsx` | Tested (100% Pass) |
-| **Epic 3** | Activity 3.2: Real Estate Valuation | `backend/app/services/valuation_service.py`, `RealEstateValuer.jsx`| Tested (100% Pass) |
-| **Epic 4** | Activity 4.1: Multimodal AI Integration | `backend/app/services/gemini_client.py` (Gemini 1.5/2.0) | Dual Live/Fallback Ready |
-| **Epic 4** | Activity 4.2: Structured Data Contracts | `backend/app/schemas/` (Pydantic v2 schemas) | Validated via Pytest |
-| **Epic 4** | Activity 4.3: Context-Aware Reasoning | OSHA 1926, ACI 318, & IBC Domain Prompts | Grounded & Implemented |
-| **Epic 5** | Activity 5.1: Construction Chatbot | `backend/app/services/chat_service.py`, `KnowledgeBot.jsx` | Tested (100% Pass) |
-| **Epic 5** | Activity 5.2: Daily Site Assistant | `backend/app/services/daily_log_service.py`, `DailySiteAssistant.jsx` | Tested (100% Pass) |
-| **Epic 5** | Activity 5.3: Weather Construction Advisory | `backend/app/services/weather_service.py`, `WeatherAdvisor.jsx`| Tested (100% Pass) |
-| **Epic 6** | Activity 6.1: Interface & End-to-End | React 18 + Vite Minimalist Web GUI | Responsive & Verified |
-| **Epic 6** | Activity 6.2: System Validation | `backend/tests/test_api.py` (9 tests) | 9 / 9 Passed |
-| **Epic 6** | Activity 6.3: Deployment Readiness | `docker-compose.yml`, `Dockerfile`, `start_dev.bat` | Production Ready |
+| **Epic 2** | Activity 2.1: Safety Image Analysis | `backend/app/services/safety_service.py`, `app.py` Tab 1 | Tested (OSHA 1926) |
+| **Epic 2** | Activity 2.2: Crack Detection Logic | `backend/app/services/crack_service.py`, `app.py` Tab 2 | Tested (ACI 318 / 224R) |
+| **Epic 3** | Activity 3.1: Construction Planning | `backend/app/services/planning_service.py`, `app.py` Tab 3 | Tested (CPM / WBS) |
+| **Epic 3** | Activity 3.2: Real Estate Valuation | `backend/app/services/valuation_service.py`, `app.py` Tab 3 | Tested (Cap Rate & Yield) |
+| **Epic 4** | Activity 4.1: Multimodal AI Integration | `gemini-3.5-flash` / `gemini-3.8-flash` / `gemini-3.5-flash-lite` | Live + Calibrated Fallback |
+| **Epic 4** | Activity 4.2: Structured Data Contracts | `backend/app/schemas/`, `OSHA_HAZARD_REGISTRY` | Strict Pydantic & Canonical Registry |
+| **Epic 4** | Activity 4.3: Context-Aware Reasoning | OSHA 1926 & ACI 318 Domain Heuristics | NMS Deduplication & Edge Guardrails |
+| **Epic 5** | Activity 5.1: Construction Chatbot | `backend/app/services/chat_service.py`, `app.py` Tab 5 | Interactive Code Assistant |
+| **Epic 5** | Activity 5.2: Daily Site Assistant | `backend/app/services/daily_log_service.py`, `app.py` Tab 4 | Automated Punch List |
+| **Epic 5** | Activity 5.3: Weather Risk Advisory | `backend/app/services/weather_service.py`, `app.py` Tab 4 | Meteorological Trade Matrix |
+| **Epic 6** | Activity 6.1: Interface & End-to-End | Streamlit (`app.py`) + React 18 / Vite Frontend | Responsive & Deployed |
+| **Epic 6** | Activity 6.2: System Validation | `backend/tests/` (14 automated tests) | **14 / 14 Passed (100%)** |
+| **Epic 6** | Activity 6.3: Deployment Readiness | Streamlit Cloud + Docker Compose | **Live Online** |
 
 ---
 
-## 💻 Prerequisites & System Requirements
+## 🚀 Quick Start Guide
 
-- **Operating System**: Windows 10/11, macOS, or Linux
-- **Python**: Version 3.8+ (Tested on Python 3.11.9)
-- **Node.js**: Version 18+ (Tested on Node v22.20.0, npm 10.9.3)
-- **Optional**: Docker & Docker Compose (for containerized deployment)
-- **Optional**: Google Gemini API Key (`GEMINI_API_KEY`). *Note: The system incorporates a robust offline calibrated engine, ensuring full functionality for demonstration and evaluation even without an API key!*
+### Option 1: Run the Streamlit Application (Recommended)
 
----
-
-## 🚀 Quick Start Guide (Local Setup)
-
-### 1. Automated 1-Click Startup (Recommended)
-
-#### On Windows:
-Double-click `start_dev.bat` or run in PowerShell / Command Prompt:
-```powershell
-.\start_dev.bat
-```
-
-#### On Linux / macOS:
-```bash
-chmod +x start_dev.sh
-./start_dev.sh
-```
+1. **Activate Virtual Environment & Install Dependencies**:
+   ```bash
+   cd backend
+   .venv\Scripts\activate      # On Linux/macOS: source .venv/bin/activate
+   pip install -r requirements.txt
+   ```
+2. **Launch Streamlit**:
+   ```bash
+   streamlit run ../app.py
+   ```
+   *The app opens automatically at [http://localhost:8501](http://localhost:8501).*
 
 ---
 
-### 2. Manual Step-by-Step Startup
+### Option 2: Run Full-Stack React + FastAPI
 
-#### Step A: Backend Setup (FastAPI)
-```bash
-cd backend
-# Create virtual environment (if not already created)
-python -m venv .venv
+1. **Start Backend (FastAPI)**:
+   ```bash
+   cd backend
+   .venv\Scripts\activate
+   uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
+   ```
+   *Swagger docs available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).*
 
-# Activate virtual environment
-# Windows:
-.venv\Scripts\activate
-# Linux/macOS:
-source .venv/bin/activate
+2. **Start Frontend (React + Vite)**:
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   *Web application opens at [http://127.0.0.1:5173](http://127.0.0.1:5173).*
 
-# Install dependencies
-pip install -r requirements.txt
-
-# (Optional) Set your Gemini API key in .env or environment
-# set GEMINI_API_KEY=your_key_here
-
-# Launch FastAPI server
-uvicorn app.main:app --host 127.0.0.1 --port 8000 --reload
-```
-*Backend will be running at [http://127.0.0.1:8000](http://127.0.0.1:8000). Interactive Swagger documentation available at [http://127.0.0.1:8000/docs](http://127.0.0.1:8000/docs).*
-
-#### Step B: Frontend Setup (React + Vite)
-In a separate terminal:
-```bash
-cd frontend
-# Install node packages
-npm install
-
-# Start Vite development server
-npm run dev
-```
-*Frontend web application will be accessible at [http://127.0.0.1:5173](http://127.0.0.1:5173).*
-
----
-
-## 🐳 Containerized Deployment (Docker Compose)
-
-To launch the entire platform with one command using Docker:
-```bash
-docker compose up --build
-```
-- **Web UI**: [http://localhost:3000](http://localhost:3000)
-- **Backend API Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-
----
-
-## 🔌 API Documentation & Data Contracts
-
-All endpoints enforce strict Pydantic JSON contracts. Detailed payload schemas and sample requests are documented in [docs/API_SPECIFICATION.md](file:///C:/Users/sanid/.gemini/antigravity/scratch/multimodal-construction-platform/docs/API_SPECIFICATION.md).
-
-### Core Endpoints:
-- `GET /api/v1/health`: System health and active AI mode (`gemini-live` or `calibrated-heuristic`).
-- `GET /api/v1/samples`: Pre-packaged multimodal scenarios for 1-click evaluation.
-- `POST /api/v1/safety/analyze`: Multipart site photo upload for OSHA safety inspection.
-- `POST /api/v1/safety/analyze-json`: Base64 JSON site photo analysis.
-- `POST /api/v1/crack/analyze`: Multipart concrete surface photo for ACI 318 crack triage.
-- `POST /api/v1/crack/analyze-json`: Base64 JSON crack inspection.
-- `POST /api/v1/planning/generate`: Synthesizes 5-stage CPM schedule, WBS, and risk matrix.
-- `POST /api/v1/valuation/calculate`: Computes fair market value, replacement cost, and Cap Rate.
-- `POST /api/v1/daily-log/process`: Converts unstructured supervisor notes into executive briefings and punch lists.
-- `POST /api/v1/weather/advisory`: Meteorological construction trade safeguards.
-- `POST /api/v1/chat/message`: Conversational civil engineering knowledge assistant.
+3. **Or launch via Docker Compose**:
+   ```bash
+   docker compose up --build
+   ```
 
 ---
 
 ## 🎯 Mentor & Evaluator Demo Walkthrough
 
-The platform has been designed for **zero-friction grading**. Every module features a **1-Click Preset Button** so mentors can evaluate multimodal AI capabilities instantly:
+The platform includes preloaded samples and clipboard pasting for quick evaluation:
 
-1. **Site Safety Inspector Tab**:
-   - Click **"Load Preset Sample"** in the top-right corner.
-   - The system instantly loads a high-resolution scaffolding scenario with detected bounding boxes.
-   - Click **"Run Safety Audit"** to review the 76/100 Compliance Score, PPE compliance progress meters, and itemized OSHA 1926 citations.
-2. **Crack & Structural Analysis Tab**:
-   - Click **"Load Preset Sample"**.
-   - Loads a reinforced concrete transfer beam displaying 45° diagonal shear distress.
-   - Click **"Analyze Structural Image"** to inspect the ACI 318-19 failure analysis, estimated 2.4mm width, and 3-step CFRP remediation protocol.
-3. **Project Planner Tab**:
-   - Click **"Load Commercial Preset"** and hit **"Generate Project Plan"**.
-   - Review the 60-week Gantt schedule with Critical Path flags, manpower allocation, and risk contingency matrix.
-4. **Real Estate Valuer Tab**:
-   - Click **"Load Penthouse Preset"** and select **"Calculate Valuation"**.
-   - Inspect the \$845,000 median market valuation, replacement cost breakdown bar, and 5.1% Cap Rate yield metrics.
-5. **Daily Site Assistant Tab**:
-   - Click **"Load Field Notes Preset"** and hit **"Process Daily Log"**.
-   - See how raw supervisor diary notes are parsed into delay hours, subcontractor impact, and an actionable next-day punch list.
-6. **Weather Advisor Tab**:
-   - Click **"Extreme Heat"** or **"Gale Wind Crane"** and click **"Run Weather Risk Advisory"**.
-   - See how the system halts tower crane operations when winds exceed OSHA thresholds and mandates ice-water dosing for hot-weather concrete.
-7. **Knowledge Bot Tab**:
-   - Click any of the suggested prompt pills (e.g., *"What is the minimum curing period for OPC concrete according to ACI 308?"*).
-   - Review multi-turn technical explanations with formal building code citations and follow-up prompts.
-8. **Executive Audit Report**:
-   - Click **"Audit Report"** in the navigation bar to preview, print, or download a consolidated Markdown audit report of all current session findings.
+### 1. Site Safety & OSHA 1926 Vision (Tab 1)
+- **Step 1**: Choose **"Use Preloaded Scaffolding Elevation Sample"** (or upload any site photo / click **"📋 Paste from Clipboard"**).
+- **Step 2**: Click **"⚡ Run Live Gemini Vision Audit"**.
+- **Evaluator Observations**:
+  - **Status Badge**: Displays `🟢 Live Gemini Vision Analysis (gemini-3.5-flash)` (or `🟡 Offline Demo Mode` if free-tier quota is exhausted).
+  - **Worker Detection**: Detects **2 Active Workers** (`W1`, `W2`) with bounding boxes placed above the heads with obstacle avoidance.
+  - **PPE Compliance**: Shows `Possible non-compliance: head protection not clearly visible` (adheres to truth-first principles for distant/hooded workers rather than claiming a false pass).
+  - **Hazard Count**: Flags **3 Hazards**:
+    1. `Worker 1 · No fall protection visible` [OSHA 1926.451(g)(1)]
+    2. `Worker 2 · No fall protection visible` [OSHA 1926.451(g)(1)]
+    3. `Scene-Level Finding · Guardrails not visible` [OSHA 1926.451(g)(4)(i)]
+  - **Scene-Level Finding Banner**: Displayed prominently below the image (`🚨 Scene-Level Finding: Guardrails not visible [OSHA 1926.451(g)(4)(i)] — No box drawn on photo`). Suppressing negative-space bounding boxes avoids spatial jumping between runs.
+  - **Scores**: Computes **88 / 100** Hazard Score and **90%** Fall Risk Index (calibrated deterministically at temperature 0.0).
+  - **1-Click Clipboard Export**: Click **"📋 Copy Full Audit Output to Clipboard"** to export the structured Markdown dossier.
+
+### 2. Crack Diagnostics & ACI 318 (Tab 2)
+- Select **Component Type** (e.g. *Reinforced Concrete Transfer Beam*) and **Design Grade** (*M25 / 3500 PSI*).
+- Click **"Run Forensic Crack Scan"**.
+- Evaluates 45° diagonal shear fracture, estimated 2.4 mm width against ACI 224R tolerable limits (0.40 mm), and provides shoring/CFRP wrapping protocols.
+
+### 3. CPM Planning & Asset Valuation (Tab 3)
+- Generate a 5-stage Work Breakdown Structure (WBS) with Critical Path flags, manpower estimates, and a 4-point risk mitigation contingency.
+- Calculate replacement costs, Gross Rental Yield (%), and Net Cap Rate (%).
+
+### 4. Weather & Daily Site Assistant (Tab 4)
+- Select weather presets (*Extreme Heat*, *Gale Wind Crane Alert*) to review trade-specific workability rules.
+- Paste superintendent field notes to generate an executive briefing and prioritized next-day punch list.
+
+### 5. Construction AI Knowledge Bot (Tab 5)
+- Click suggested code prompts to test conversational multi-turn technical Q&A with building code citations.
 
 ---
 
 ## 🧪 Automated Verification & Test Suite
 
-The backend includes a comprehensive pytest suite covering all routers, schema validations, image decoders, and fallback engines:
+The platform includes **14 automated unit and integration tests** executed via pytest:
 
 ```bash
 cd backend
@@ -254,48 +216,52 @@ cd backend
 pytest tests/ -v
 ```
 
-### Test Results:
+### Test Suite Execution Output:
 ```text
-tests/test_api.py::test_root_and_health PASSED                           [ 11%]
-tests/test_api.py::test_samples_endpoint PASSED                          [ 22%]
-tests/test_api.py::test_safety_analysis_json PASSED                      [ 33%]
-tests/test_api.py::test_crack_analysis_json PASSED                       [ 44%]
-tests/test_api.py::test_planning_generation PASSED                       [ 55%]
-tests/test_api.py::test_valuation_calculation PASSED                     [ 66%]
-tests/test_api.py::test_daily_log_processing PASSED                      [ 77%]
-tests/test_api.py::test_weather_advisory PASSED                          [ 88%]
-tests/test_api.py::test_chat_assistant PASSED                            [100%]
+backend/tests/test_api.py::test_root_and_health PASSED                   [  7%]
+backend/tests/test_api.py::test_samples_endpoint PASSED                  [ 14%]
+backend/tests/test_api.py::test_safety_analysis_json PASSED              [ 21%]
+backend/tests/test_api.py::test_crack_analysis_json PASSED               [ 28%]
+backend/tests/test_api.py::test_planning_generation PASSED               [ 35%]
+backend/tests/test_api.py::test_valuation_calculation PASSED             [ 42%]
+backend/tests/test_api.py::test_daily_log_processing PASSED              [ 50%]
+backend/tests/test_api.py::test_weather_advisory PASSED                  [ 57%]
+backend/tests/test_api.py::test_chat_assistant PASSED                    [ 64%]
+backend/tests/test_vision_heuristics.py::test_iou_calculation_and_person_deduplication PASSED [ 71%]
+backend/tests/test_vision_heuristics.py::test_canonical_osha_hazard_registry PASSED [ 78%]
+backend/tests/test_vision_heuristics.py::test_scene_level_finding_suppression PASSED [ 85%]
+backend/tests/test_vision_heuristics.py::test_empty_scaffold_zero_hazards PASSED [ 92%]
+backend/tests/test_vision_heuristics.py::test_compliant_ground_worker PASSED [100%]
 
-======================= 9 passed in 12.80s ========================
+======================= 14 passed in 7.23s ========================
 ```
 
 ---
 
 ## 📐 Civil Engineering & Safety Standards Grounding
 
-The platform is strictly calibrated against internationally recognized engineering and safety benchmarks:
-- **OSHA 29 CFR 1926**: Subpart M (Fall Protection §1926.501/502), Subpart L (Scaffolds §1926.451), Subpart E (Personal Protective Equipment §1926.100/102).
+The platform is calibrated against standard engineering and safety codes:
+- **OSHA 29 CFR 1926**: Subpart L (Scaffolds § 1926.451), Subpart M (Fall Protection § 1926.501/502), Subpart E (PPE § 1926.100/102).
 - **ACI 318-19**: American Concrete Institute Building Code Requirements for Structural Concrete (Chapter 9 Shear Design, Chapter 10 Columns).
-- **ACI 224R / 224.1R**: Causes, Evaluation, and Repair of Cracks in Concrete Structures (Tolerable crack width limits: 0.40mm for interior exposure).
+- **ACI 224R-01**: Causes, Evaluation, and Repair of Cracks in Concrete Structures (Tolerable crack width limits: 0.40 mm interior, 0.30 mm exterior).
 - **ACI 305R & 306R**: Specification for Hot Weather and Cold Weather Concreting.
 - **IBC 2024**: International Building Code occupancy and structural provisions.
-- **ISO 45001**: Occupational Health and Safety Management Systems.
 
 ---
 
 ## ⚠️ Engineering Limitations & Human-in-the-Loop Principles
 
-The **Multimodal Construction Intelligence Platform** is an **AI-assisted decision-support system** engineered to assist field supervisors and safety auditors. It is not an automated replacement for licensed professional personnel.
+The **Multimodal Construction Intelligence Platform** is an **AI-assisted decision-support system** engineered to assist field personnel. It is not an automated replacement for licensed professional engineers or safety officers.
 
 1. **AI-Assisted Screening & Competent Person Oversight**:
    - All computer vision detections, bounding boxes, and safety telemetry serve as rapid initial screening.
    - Per OSHA 29 CFR 1926 standards, elevated work platforms and scaffolding configurations must be formally inspected, tagged, and cleared by an OSHA-designated **Competent Person** prior to trade occupancy.
 2. **Truth-First Optical Thresholds & PPE Verification**:
-   - The platform adheres to strict truth-first principles: When headwear or PPE is obscured by viewing angle, distance (>50 ft), hoods, balaclavas, or low optical resolution, the system returns:  
+   - When headwear or PPE is obscured by viewing angle, distance (>50 ft), hoods, balaclavas, or low optical resolution, the system returns:  
      `Possible non-compliance: head protection not clearly visible (OSHA 1926.100 Spot-Check Required)`
-   - The platform eliminates false assurance by refusing to grant unverified 100% passes when head protection cannot be confirmed.
+   - The platform avoids false assurance by refusing to grant unverified 100% passes when head protection cannot be confirmed.
 3. **Jurisdictional Standard Hierarchy & Subpart L Fall Protection Criteria**:
-   - In accordance with 29 CFR 1926.500(a)(2)(i), scaffolds are strictly excluded from general Subpart M fall protection and are governed under **Subpart L (§ 1926.451)**.
+   - In accordance with 29 CFR 1926.500(a)(2)(i), scaffolds are excluded from general Subpart M fall protection and are governed under **Subpart L (§ 1926.451)**.
    - Under **29 CFR 1926.451(g)(1)(vii)**, employees on supported frame scaffolds more than 10 ft above a lower level must be protected by *either* a personal fall arrest system (PFAS) *or* a guardrail system meeting § 1926.451(g)(4). A missing personal fall arrest lanyard constitutes a violation specifically when compliant perimeter guardrails are also absent. The platform evaluates both controls simultaneously to report: *"No fall protection visible: neither guardrails nor personal fall arrest."*
    - Guardrails are cited specifically under **§ 1926.451(g)(4)(i)**, while fall protection criteria cites **§ 1926.451(g)(1)**.
    - Monocular 2D photographs cannot yield laser-calibrated dimensional elevation; heights are reported as *"appears to be more than 10 ft above the lower level"* based on structural scaffolding frame tiers.
@@ -305,6 +271,8 @@ The **Multimodal Construction Intelligence Platform** is an **AI-assisted decisi
    - Subsurface void propagation, steel reinforcement yielding, or rebar corrosion must be verified via physical non-destructive testing (ultrasonic pulse velocity, ground-penetrating radar, or core compression tests) under the direction of a licensed Professional Engineer (PE / SE).
 5. **Deterministic Scoring & Reproducibility**:
    - Risk indices and hazard scores are computed using fixed, deterministic civil engineering formulas with model temperature set to `0.0`, ensuring identical visual inputs generate reproducible audit metrics.
+6. **Sample Image Rights & Attribution**:
+   - `sample_scaffold.jpg` is a synthetic high-resolution benchmark image created for construction safety computer vision evaluation.
 
 ---
 

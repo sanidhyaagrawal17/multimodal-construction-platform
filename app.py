@@ -1361,15 +1361,23 @@ with tab1:
                 st.session_state["session_audit_count"] += 1
                 with st.spinner(f"Executing computer vision safety inspection with {active_model_name}..."):
                     raw_data = call_gemini_multimodal(selected_img, SAFETY_PROMPT, system_instruction=SAFETY_SYSTEM_PROMPT)
-                    st.session_state["unified_safety_audit"] = build_unified_audit_findings(raw_data)
+                    if raw_data:
+                        st.session_state["unified_safety_audit"] = build_unified_audit_findings(raw_data)
+                        st.session_state["safety_audit_source"] = "live_gemini"
+                    else:
+                        st.session_state["unified_safety_audit"] = build_unified_audit_findings(None)
+                        st.session_state["safety_audit_source"] = "offline_fallback"
 
         # Retrieve authoritative audit findings (fallback to calibrated sample only when preloaded sample is selected)
         if st.session_state.get("unified_safety_audit"):
             audit = st.session_state["unified_safety_audit"]
+            audit_source = st.session_state.get("safety_audit_source", "live_gemini")
         elif img_source == "Use Preloaded Scaffolding Elevation Sample":
             audit = build_unified_audit_findings(None)
+            audit_source = "preloaded_sample"
         else:
             audit = None
+            audit_source = None
 
         if selected_img:
             if audit:
@@ -1379,6 +1387,32 @@ with tab1:
                     annotated = draw_dynamic_annotations(selected_img, audit.get("all_detections", []))
                     st.image(annotated, caption="Live Computer Vision Overlay • OSHA 1926 Spatial Telemetry", use_container_width=True)
                 
+                # Disclosure Badge: Live Gemini vs Offline Demo Fallback vs Preloaded Benchmark
+                if audit_source == "live_gemini":
+                    st.markdown(f"""
+                    <div style="margin: 4px 0 8px 0;">
+                        <span style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                            🟢 Live Gemini Vision Analysis ({active_model_name})
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif audit_source == "offline_fallback":
+                    st.markdown("""
+                    <div style="margin: 4px 0 8px 0;">
+                        <span style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                            🟡 Offline Demo Mode (API Quota Limit / Calibrated Heuristic Engine)
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+                elif audit_source == "preloaded_sample":
+                    st.markdown("""
+                    <div style="margin: 4px 0 8px 0;">
+                        <span style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                            🔵 Preloaded Benchmark Sample (Click '⚡ Run Live Gemini Vision Audit' for real-time model inference)
+                        </span>
+                    </div>
+                    """, unsafe_allow_html=True)
+
                 # On-Screen Scene-Level Finding Banner
                 scene_findings = [h for h in audit.get("hazards", []) if h.get("is_scene_level") or not h.get("box_2d")]
                 if scene_findings:
@@ -1594,6 +1628,23 @@ with tab2:
         sev = live_crack_data.get("severity", "Severe") if live_crack_data else "Severe"
         lim_mm = live_crack_data.get("tolerable_limit_mm", 0.40) if live_crack_data else 0.40
         cause = live_crack_data.get("cause_analysis", "Distinct 45-degree diagonal tension fracture propagating from support toward neutral axis. Indicates primary shear stress exceedance and potential undersized shear stirrup reinforcement or excessive concentrated live load.") if live_crack_data else "Distinct 45-degree diagonal tension fracture propagating from support toward neutral axis. Indicates primary shear stress exceedance and potential undersized shear stirrup reinforcement or excessive concentrated live load."
+
+        if live_crack_data:
+            st.markdown(f"""
+            <div style="margin-bottom: 8px;">
+                <span style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                    🟢 Live Gemini Multimodal Scan ({active_model_name})
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            <div style="margin-bottom: 8px;">
+                <span style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                    🔵 Calibrated ACI 318 Benchmark Profile (Upload photo & click 'Run Forensic Crack Scan' for live vision)
+                </span>
+            </div>
+            """, unsafe_allow_html=True)
 
         st.markdown(f"""
         <div class="tactical-card">
