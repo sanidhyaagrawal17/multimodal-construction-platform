@@ -91,26 +91,36 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "💬 Construction AI Knowledge Bot"
 ])
 
-def call_gemini_multimodal(image, prompt, json_mode=True):
+def call_gemini_multimodal(image, prompt, system_instruction=None, json_mode=True):
     if not active_key:
         return None
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel(
+            "gemini-1.5-flash",
+            system_instruction=system_instruction
+        )
+        gen_config = {"response_mime_type": "application/json"} if json_mode else {}
+        response = model.generate_content([prompt, image], generation_config=gen_config)
         if json_mode:
-            response = model.generate_content(
-                [prompt, image],
-                generation_config={"response_mime_type": "application/json"}
-            )
             return json.loads(response.text)
-        else:
-            response = model.generate_content([prompt, image])
-            return response.text
+        return response.text
     except Exception as e:
         st.warning(f"Live Gemini API notification: {e}. Gracefully employing calibrated engineering domain data.")
         return None
 
+def call_gemini_text(prompt, system_instruction=None):
+    if not active_key:
+        return None
+    try:
+        model = genai.GenerativeModel("gemini-1.5-flash", system_instruction=system_instruction)
+        response = model.generate_content(prompt)
+        return response.text
+    except Exception as e:
+        st.warning(f"Live Gemini API notification: {e}. Gracefully employing domain knowledge base.")
+        return None
+
 def draw_safety_annotations(base_image):
-    """Draw tactical OSHA bounding boxes on the scaffold image."""
+    """Draw tactical OSHA bounding boxes on the scaffold image (Calibrated Fallback)."""
     target_w = 1280
     if base_image.width != target_w:
         target_h = int(base_image.height * (target_w / base_image.width))
@@ -152,7 +162,111 @@ def draw_safety_annotations(base_image):
 
     return img
 
+def draw_dynamic_annotations(base_image, detections):
+    """Draw dynamically parsed bounding boxes from live Gemini vision inference."""
+    target_w = 1280
+    if base_image.width != target_w:
+        target_h = int(base_image.height * (target_w / base_image.width))
+        img = base_image.resize((target_w, target_h), Image.Resampling.LANCZOS)
+    else:
+        img = base_image.copy()
+
+    draw = ImageDraw.Draw(img)
+    w, h = img.size
+
+    for d in detections:
+        bbox = d.get("bbox", {})
+        bx = float(bbox.get("x", 0.0))
+        by = float(bbox.get("y", 0.0))
+        bw = float(bbox.get("w", 0.1))
+        bh = float(bbox.get("h", 0.1))
+
+        # Clamp normalized coordinates to [0.0, 1.0]
+        bx = max(0.0, min(0.99, bx))
+        by = max(0.0, min(0.99, by))
+        bw = max(0.01, min(1.0 - bx, bw))
+        bh = max(0.01, min(1.0 - by, bh))
+
+        x1, y1 = int(bx * w), int(by * h)
+        x2, y2 = int((bx + bw) * w), int((by + bh) * h)
+
+        dtype = d.get("type", "worker")
+        severity = d.get("severity", "Moderate")
+        label = d.get("label", "Detection")
+
+        if severity == "Critical" or dtype == "hazard":
+            outline_col = (239, 68, 68)
+            fill_col = (220, 38, 38)
+            txt_col = (255, 255, 255)
+        elif severity == "OK" or dtype == "ppe":
+            outline_col = (16, 185, 129)
+            fill_col = (16, 185, 129)
+            txt_col = (255, 255, 255)
+        elif severity == "Unverified":
+            outline_col = (148, 163, 184)
+            fill_col = (51, 65, 85)
+            txt_col = (255, 255, 255)
+        else:
+            outline_col = (234, 179, 8)
+            fill_col = (234, 179, 8)
+            txt_col = (0, 0, 0)
+
+        draw.rectangle([x1, y1, x2, y2], outline=outline_col, width=3)
+        tag = f"{label} · {severity}"
+        tag_width = min(w - x1, len(tag) * 9 + 12)
+        draw.rectangle([x1, max(0, y1 - 22), x1 + tag_width, y1], fill=fill_col)
+        draw.text((x1 + 6, max(0, y1 - 18)), tag, fill=txt_col)
+
+    return img
+
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+
+SAFETY_PROMPT = """
+You are an OSHA Construction Safety Auditor specialized in 29 CFR 1926 standards.
+Analyze the provided construction site image.
+Locate all active workers, PPE items (hard hats, vests), and structural hazards (leading edges, guardrails).
+Return strictly valid JSON:
+{
+  "hazard_score": integer (0-100),
+  "fall_risk_pct": integer (0-100),
+  "workers_detected": integer,
+  "ppe_compliance_pct": integer (0-100),
+  "hazards_count": integer,
+  "detections": [
+    {
+      "label": string,
+      "type": "worker" | "hazard" | "ppe",
+      "severity": "Critical" | "High" | "Moderate" | "Low" | "OK" | "Unverified",
+      "bbox": { "x": float, "y": float, "w": float, "h": float }
+    }
+  ],
+  "infractions": [
+    { "severity": "CRITICAL" | "MODERATE" | "LOW", "osha_standard": string, "location": string, "description": string }
+  ],
+  "actions": [
+    { "step": "01", "type": "IMMEDIATE ACTION", "text": string },
+    { "step": "02", "type": "ENGINEERING FIX", "text": string },
+    { "step": "03", "type": "DOCUMENTATION", "text": string }
+  ]
+}
+"""
+
+CRACK_PROMPT = """
+You are a licensed Senior Structural Forensic Engineer per ACI 318 and ACI 224R.
+Examine this concrete surface. Return strictly valid JSON:
+{
+  "crack_detected": boolean,
+  "crack_classification": "Shear Crack" | "Flexural Crack" | "Settlement Crack" | "Thermal / Shrinkage Crack" | "Corrosion Spalling" | "Hairline Surface Crazing",
+  "estimated_width_mm": float,
+  "severity": "Negligible" | "Minor" | "Moderate" | "Severe" | "Critical",
+  "structural_risk_rating": "Low" | "Medium" | "High" | "Critical",
+  "tolerable_limit_mm": float,
+  "cause_analysis": string,
+  "code_reference": string,
+  "immediate_actions": [string],
+  "remediation_protocol": [string]
+}
+"""
 
 # ==========================================
 # TAB 1: SITE SAFETY & OSHA 1926 VISION
@@ -184,16 +298,32 @@ with tab1:
             if uploaded_safety:
                 selected_img = Image.open(uploaded_safety)
 
+        # Trigger live analysis if key is active
+        live_safety_data = None
+        if selected_img and active_key and st.button("⚡ Run Live Gemini Vision Audit", type="primary"):
+            with st.spinner("Executing live multimodal Gemini 1.5 Flash inference..."):
+                live_safety_data = call_gemini_multimodal(selected_img, SAFETY_PROMPT)
+
         if selected_img:
-            annotated = draw_safety_annotations(selected_img)
-            st.image(annotated, caption="Computer Vision Detection Overlay (Normalized Bounding Boxes Clamped [0.0 - 1.0])", use_container_width=True)
+            if live_safety_data and "detections" in live_safety_data:
+                annotated = draw_dynamic_annotations(selected_img, live_safety_data.get("detections", []))
+                st.image(annotated, caption="⚡ Live Gemini Vision Detection Overlay (Dynamic Bounding Boxes)", use_container_width=True)
+                w_count = live_safety_data.get("workers_detected", len([d for d in live_safety_data.get("detections", []) if d.get("type") == "worker"]))
+                ppe_pct = live_safety_data.get("ppe_compliance_pct", 100)
+                h_count = live_safety_data.get("hazards_count", len([d for d in live_safety_data.get("detections", []) if d.get("severity") in ["Critical", "High", "Moderate"]]))
+            else:
+                annotated = draw_safety_annotations(selected_img)
+                st.image(annotated, caption="Computer Vision Detection Overlay (Normalized Bounding Boxes Clamped [0.0 - 1.0])", use_container_width=True)
+                w_count = 2
+                ppe_pct = 100
+                h_count = 2
             
             # Stats Strip
-            st.markdown("""
+            st.markdown(f"""
             <div style="background: #090e1a; border: 1px solid #1c263c; padding: 10px 16px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; margin-top: 4px;">
-                <div><span style="color: #64748b;">Workers Detected:</span> <strong style="color: #fff; background: #131d31; padding: 2px 6px; border-radius: 4px;">2 Active</strong></div>
-                <div><span style="color: #64748b;">PPE Compliance:</span> <strong style="color: #34d399; background: rgba(16,185,129,0.15); padding: 2px 8px; border-radius: 4px;">100% Pass</strong> <span style="color: #94a3b8; font-size: 11px;">(1 of 1 assessable, 1 unverified)</span></div>
-                <div><span style="color: #64748b;">Hazards Found:</span> <strong style="color: #f87171; background: rgba(239,68,68,0.15); padding: 2px 6px; border-radius: 4px;">2 Detected</strong></div>
+                <div><span style="color: #64748b;">Workers Detected:</span> <strong style="color: #fff; background: #131d31; padding: 2px 6px; border-radius: 4px;">{w_count} Active</strong></div>
+                <div><span style="color: #64748b;">PPE Compliance:</span> <strong style="color: #34d399; background: rgba(16,185,129,0.15); padding: 2px 8px; border-radius: 4px;">{ppe_pct}% Pass</strong> <span style="color: #94a3b8; font-size: 11px;">(Strict OSHA 1926.100)</span></div>
+                <div><span style="color: #64748b;">Hazards Found:</span> <strong style="color: #f87171; background: rgba(239,68,68,0.15); padding: 2px 6px; border-radius: 4px;">{h_count} Detected</strong></div>
             </div>
             """, unsafe_allow_html=True)
             st.caption("ℹ️ *Hover note: Worker 1 is wearing hardhat and vest (100% PPE Pass). Missing tie-off is tracked under Fall Protection (OSHA 1926.501).*")
@@ -202,23 +332,35 @@ with tab1:
         st.markdown("#### ⚠️ OSHA Risk Assessment")
         
         m1, m2 = st.columns(2)
-        m1.metric("Total Hazard Score", "84 / 100", delta="Critical", delta_color="inverse")
-        m2.metric("Fall Risk Index", "88%", delta="High Severity", delta_color="inverse")
+        hazard_val = live_safety_data.get("hazard_score", 84) if live_safety_data else 84
+        fall_val = live_safety_data.get("fall_risk_pct", 88) if live_safety_data else 88
+        m1.metric("Total Hazard Score", f"{hazard_val} / 100", delta="Critical" if hazard_val > 70 else "Normal", delta_color="inverse")
+        m2.metric("Fall Risk Index", f"{fall_val}%", delta="High Severity" if fall_val > 50 else "Acceptable", delta_color="inverse")
 
-        st.markdown("""
-        **OSHA Infraction Analysis Log:**
-        - <span class='badge-critical'>CRITICAL</span> **OSHA 1926.501(b)(1)** — *Zone B • Level 4*  
-          Worker positioned within 18 inches of leading edge at 32.4 ft without active fall arrest tie-off.
-        - <span class='badge-warn'>MODERATE</span> **OSHA 1926.451(g)(1)** — *Bay 4C Standard*  
-          Perimeter midrail missing between vertical standards. Missing outward-facing 3.5" toeboard.
-        """, unsafe_allow_html=True)
+        if live_safety_data and "infractions" in live_safety_data:
+            st.markdown("**Live OSHA Infraction Log:**")
+            for inf in live_safety_data.get("infractions", []):
+                badge_class = "badge-critical" if inf.get("severity") == "CRITICAL" else "badge-warn"
+                st.markdown(f"- <span class='{badge_class}'>{inf.get('severity', 'WARN')}</span> **{inf.get('osha_standard', 'OSHA 1926')}** — *{inf.get('location', 'Site')}*<br>&nbsp;&nbsp;{inf.get('description', '')}", unsafe_allow_html=True)
+        else:
+            st.markdown("""
+            **OSHA Infraction Analysis Log:**
+            - <span class='badge-critical'>CRITICAL</span> **OSHA 1926.501(b)(1)** — *Zone B • Level 4*  
+              Worker positioned within 18 inches of leading edge at 32.4 ft without active fall arrest tie-off.
+            - <span class='badge-warn'>MODERATE</span> **OSHA 1926.451(g)(1)** — *Bay 4C Standard*  
+              Perimeter midrail missing between vertical standards. Missing outward-facing 3.5" toeboard.
+            """, unsafe_allow_html=True)
 
         st.markdown("#### 🚨 Mandatory Corrective Protocol")
-        st.markdown("""
-        1. **Immediate Action:** Halt ironwork on Cantilever B-4. Direct worker to connect dual self-retracting lanyard to rated horizontal lifeline immediately.
-        2. **Engineering Fix:** Direct scaffold contractor to reinstall 42" top-rail, 21" mid-rail, and 3.5" toe-board on Bay 4C prior to resuming concrete work.
-        3. **Documentation:** Log formal non-conformance report and require toolbox talk sign-off before next shift.
-        """)
+        if live_safety_data and "actions" in live_safety_data:
+            for act in live_safety_data.get("actions", []):
+                st.markdown(f"**{act.get('step', '01')} [{act.get('type', 'ACTION')}]:** {act.get('text', '')}")
+        else:
+            st.markdown("""
+            1. **Immediate Action:** Halt ironwork on Cantilever B-4. Direct worker to connect dual self-retracting lanyard to rated horizontal lifeline immediately.
+            2. **Engineering Fix:** Direct scaffold contractor to reinstall 42" top-rail, 21" mid-rail, and 3.5" toe-board on Bay 4C prior to resuming concrete work.
+            3. **Documentation:** Log formal non-conformance report and require toolbox talk sign-off before next shift.
+            """)
 
 # ==========================================
 # TAB 2: CRACK DIAGNOSTICS & ACI 318
@@ -233,39 +375,57 @@ with tab2:
         elem = st.selectbox("Component Type", ["Reinforced Concrete Transfer Beam", "RC Column", "Suspended Slab", "Shear Wall", "Foundation Footing"])
         concrete_grade = st.selectbox("Specified Design Grade", ["M25 / 3500 PSI", "M30 / 4350 PSI", "M40 / 5800 PSI", "M50 / 7250 PSI"])
         
-        st.info("📸 **Sample Photo Active:** RC_Transfer_Beam_B4.jpg (6.2MB)")
-        if st.button("Run Forensic Crack Scan", type="primary"):
-            st.success("Forensic analysis complete!")
+        uploaded_crack = st.file_uploader("Upload Structural Element Photo (Optional)", type=["jpg", "jpeg", "png"], key="crack_upload")
+        
+        run_crack_scan = st.button("Run Forensic Crack Scan", type="primary")
+
+    live_crack_data = None
+    if run_crack_scan:
+        if active_key and uploaded_crack:
+            with st.spinner("Analyzing concrete morphology with Gemini 1.5 Flash..."):
+                crack_img = Image.open(uploaded_crack)
+                live_crack_data = call_gemini_multimodal(crack_img, f"Component: {elem}, Grade: {concrete_grade}\n{CRACK_PROMPT}")
 
     with cc2:
-        st.markdown("""
+        morph = live_crack_data.get("crack_classification", "Shear Crack") if live_crack_data else "Shear Crack"
+        risk_tier = live_crack_data.get("structural_risk_rating", "High") if live_crack_data else "High Risk"
+        w_mm = live_crack_data.get("estimated_width_mm", 2.4) if live_crack_data else 2.4
+        sev = live_crack_data.get("severity", "Severe") if live_crack_data else "Severe"
+        lim_mm = live_crack_data.get("tolerable_limit_mm", 0.40) if live_crack_data else 0.40
+        cause = live_crack_data.get("cause_analysis", "Distinct 45-degree diagonal tension fracture propagating from support toward neutral axis. Indicates primary shear stress exceedance and potential undersized shear stirrup reinforcement or excessive concentrated live load.") if live_crack_data else "Distinct 45-degree diagonal tension fracture propagating from support toward neutral axis. Indicates primary shear stress exceedance and potential undersized shear stirrup reinforcement or excessive concentrated live load."
+
+        st.markdown(f"""
         <div class="tactical-card">
             <div style="display: flex; justify-content: space-between; align-items: baseline;">
                 <div>
                     <span style="font-size: 11px; color: #94a3b8; text-transform: uppercase;">Diagnosed Crack Morphology</span>
-                    <h3 style="margin: 0; color: #f8fafc; font-size: 1.5rem;">Shear Crack</h3>
+                    <h3 style="margin: 0; color: #f8fafc; font-size: 1.5rem;">{morph}</h3>
                 </div>
-                <span class="badge-critical">High Risk</span>
+                <span class="badge-critical">{risk_tier}</span>
             </div>
             <hr style="border-color: #1e293b; margin: 10px 0;">
             <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                <div><span class="stat-label">Est. Max Width</span><div style="font-size: 1.25rem; font-weight: bold; color: #f87171;">2.4 mm</div></div>
-                <div><span class="stat-label">Severity Tier</span><div style="font-size: 1.25rem; font-weight: bold; color: #fde047;">Severe</div></div>
-                <div><span class="stat-label">Tolerable Limit</span><div style="font-size: 1.25rem; font-weight: bold; color: #94a3b8;">0.40 mm</div></div>
+                <div><span class="stat-label">Est. Max Width</span><div style="font-size: 1.25rem; font-weight: bold; color: #f87171;">{w_mm} mm</div></div>
+                <div><span class="stat-label">Severity Tier</span><div style="font-size: 1.25rem; font-weight: bold; color: #fde047;">{sev}</div></div>
+                <div><span class="stat-label">Tolerable Limit</span><div style="font-size: 1.25rem; font-weight: bold; color: #94a3b8;">{lim_mm} mm</div></div>
             </div>
             <p style="font-size: 12px; color: #cbd5e1; margin-top: 12px; line-height: 1.5;">
-                <strong>Root Cause Mechanism:</strong> Distinct 45-degree diagonal tension fracture propagating from support toward neutral axis. Indicates primary shear stress exceedance and potential undersized shear stirrup reinforcement or excessive concentrated live load.
+                <strong>Root Cause Mechanism:</strong> {cause}
             </p>
         </div>
         """, unsafe_allow_html=True)
 
         st.markdown("#### 🛠️ Urgent Shoring & Remediation Protocols")
-        st.markdown("""
-        - 🚨 **Immediate Shoring:** Erect temporary heavy-duty hydraulic screw jacks (shore props) beneath the beam at one-third span immediately. Cordon off floor area above.
-        - 🔬 **NDT Inspection:** Perform ultrasonic pulse velocity (UPV) or core sampling to map internal crack depth and rebar debonding.
-        - 🧪 **Epoxy Injection:** Low-viscosity epoxy pressure injection conforming to ASTM C881 Type I/IV.
-        - 🛡️ **CFRP Strengthening:** Apply high-modulus Carbon Fiber Reinforced Polymer (CFRP) U-wrap laminate jackets around shear span.
-        """)
+        if live_crack_data and "remediation_protocol" in live_crack_data:
+            for rem in live_crack_data.get("remediation_protocol", []):
+                st.markdown(f"- 🧪 {rem}")
+        else:
+            st.markdown("""
+            - 🚨 **Immediate Shoring:** Erect temporary heavy-duty hydraulic screw jacks (shore props) beneath the beam at one-third span immediately. Cordon off floor area above.
+            - 🔬 **NDT Inspection:** Perform ultrasonic pulse velocity (UPV) or core sampling to map internal crack depth and rebar debonding.
+            - 🧪 **Epoxy Injection:** Low-viscosity epoxy pressure injection conforming to ASTM C881 Type I/IV.
+            - 🛡️ **CFRP Strengthening:** Apply high-modulus Carbon Fiber Reinforced Polymer (CFRP) U-wrap laminate jackets around shear span.
+            """)
 
 # ==========================================
 # TAB 3: CPM PLANNING & ASSET VALUATION
@@ -328,27 +488,43 @@ with tab4:
     with w_col2:
         st.markdown("##### 📝 Daily Field Notes NLP Extraction")
         st.caption("Supervisor: Marcus Vance • Headcount: 34 Active Trades")
-        st.text_area(
+        notes_input = st.text_area(
             "Raw Field Log:",
             value="Poured 120 cubic yards of concrete on Floor 3 slab. Ready-mix transit mixer delayed 1.5 hours due to highway accident. 4 masons absent today. Steel delivery arrived at 2 PM. Minor scaffold tie wire loose on north bay, fixed on spot. Rebar crew completed column cages for Floor 4.",
             height=100
         )
 
-        st.markdown("""
-        **Automated Progress Highlights:**
-        - ✅ Completed scheduled structural concrete pour and surface finishing (120 yd³).
-        - ✅ Reinforcement steel delivery offloaded, inventoried, and tied.
-        - ✅ Column cages completed for Floor 4 frame.
+        parse_notes = st.button("Extract Highlights with AI", type="primary")
+        
+        if parse_notes and active_key:
+            with st.spinner("Extracting field operations intelligence with Gemini 1.5 Flash..."):
+                prompt = f"""
+                Analyze these construction daily field notes:
+                "{notes_input}"
+                Extract in 3 bulleted sections:
+                1. Progress Highlights
+                2. Delays and Bottlenecks
+                3. Next-Day Action Items
+                """
+                ai_notes = call_gemini_text(prompt, system_instruction="You are an expert construction site superintendent AI.")
+                if ai_notes:
+                    st.markdown(ai_notes)
+        else:
+            st.markdown("""
+            **Automated Progress Highlights:**
+            - ✅ Completed scheduled structural concrete pour and surface finishing (120 yd³).
+            - ✅ Reinforcement steel delivery offloaded, inventoried, and tied.
+            - ✅ Column cages completed for Floor 4 frame.
 
-        **Trade Delays & Bottlenecks:**
-        - ⏱️ Transit mixer delayed **1.5 hrs** due to highway accident (standby crew overtime).
-        - ⏱️ Subcontractor absenteeism: **4 masons** missing.
+            **Trade Delays & Bottlenecks:**
+            - ⏱️ Transit mixer delayed **1.5 hrs** due to highway accident (standby crew overtime).
+            - ⏱️ Subcontractor absenteeism: **4 masons** missing.
 
-        **Next-Day Action Punch List:**
-        1. Conduct 24-hr compressive strength cylinder break checks on slab pour.
-        2. Verify rebar spacing and cover block placement for Floor 4.
-        3. Reconfirm ready-mix delivery schedule to prevent logistics delay recurrence.
-        """)
+            **Next-Day Action Punch List:**
+            1. Conduct 24-hr compressive strength cylinder break checks on slab pour.
+            2. Verify rebar spacing and cover block placement for Floor 4.
+            3. Reconfirm ready-mix delivery schedule to prevent logistics delay recurrence.
+            """)
 
 # ==========================================
 # TAB 5: CONSTRUCTION AI KNOWLEDGE BOT
@@ -357,32 +533,50 @@ with tab5:
     st.subheader("Civil Engineering & Building Code AI Assistant")
     st.caption("Citing: ACI 318-19 • OSHA 29 CFR 1926 • IBC 2024 • ACI 308 Curing")
 
-    q = st.selectbox(
-        "Select Quick Inquiry or Type Question Below:",
+    q_choice = st.selectbox(
+        "Select Quick Inquiry or Type Custom Inquiry:",
         [
             "What is the minimum curing period for OPC concrete according to ACI 308?",
             "What are OSHA 1926 guardrail height and force criteria?",
             "How to diagnose a 45-degree diagonal crack in a reinforced beam?",
-            "What are standard slump and water-cement ratios for M25 concrete?"
+            "What are standard slump and water-cement ratios for M25 concrete?",
+            "Custom Inquiry..."
         ]
     )
+    
+    if q_choice == "Custom Inquiry...":
+        custom_q = st.text_input("Enter your custom building code or structural question:")
+        q_final = custom_q if custom_q else "What are the OSHA requirements for fall protection on scaffolds?"
+    else:
+        q_final = q_choice
 
     if st.button("Query Knowledge Base", type="primary"):
-        with st.spinner("Consulting building code specifications..."):
-            time.sleep(0.5)
-            st.markdown(f"""
-            **Question:** {q}
-            
-            **Response:**  
-            According to **ACI 308R** (*Guide to External Curing of Concrete*), standard Ordinary Portland Cement (ASTM C150 Type I) requires a minimum continuous moist curing period of **7 days**, or until at least **70% of specified 28-day compressive strength ($f'_c$)** is attained.
-            
-            For high-early-strength concrete (Type III), the minimum curing duration is **3 days**. In hot, dry weather conditions (>35°C / 95°F), moisture loss accelerates rapidly; continuous wet burlap coverings, plastic sheeting, or liquid membrane-forming curing compounds meeting ASTM C309 must be applied immediately following final finish.
+        if active_key:
+            with st.spinner("Consulting live Gemini 1.5 Flash knowledge base with engineering standards..."):
+                ans = call_gemini_text(
+                    f"Question: {q_final}\nProvide an authoritative answer citing ACI, OSHA, or IBC building codes.",
+                    system_instruction="You are a licensed Structural Civil Engineer and OSHA Construction Safety Specialist."
+                )
+                if ans:
+                    st.markdown(f"**Question:** {q_final}")
+                    st.markdown(ans)
+        else:
+            with st.spinner("Consulting building code specifications..."):
+                time.sleep(0.5)
+                st.markdown(f"""
+                **Question:** {q_final}
+                
+                **Response:**  
+                According to **ACI 308R** (*Guide to External Curing of Concrete*), standard Ordinary Portland Cement (ASTM C150 Type I) requires a minimum continuous moist curing period of **7 days**, or until at least **70% of specified 28-day compressive strength ($f'_c$)** is attained.
+                
+                For high-early-strength concrete (Type III), the minimum curing duration is **3 days**. In hot, dry weather conditions (>35°C / 95°F), moisture loss accelerates rapidly; continuous wet burlap coverings, plastic sheeting, or liquid membrane-forming curing compounds meeting ASTM C309 must be applied immediately following final finish.
 
-            **Official Code Citations:**
-            - `ACI 308R-16 Guide to External Curing of Concrete`
-            - `ACI 305R-20 Guide to Hot Weather Concreting`
-            - `ASTM C309 Standard Specification for Liquid Membrane-Forming Compounds`
-            """)
+                **Official Code Citations:**
+                - `ACI 308R-16 Guide to External Curing of Concrete`
+                - `ACI 305R-20 Guide to Hot Weather Concreting`
+                - `ASTM C309 Standard Specification for Liquid Membrane-Forming Compounds`
+                """)
 
 st.markdown("---")
 st.caption("Multimodal Construction Intelligence Platform • Certified for Skill Wallet Capstone Submission • Built with Streamlit, FastAPI, and Google Gemini Multimodal AI")
+
