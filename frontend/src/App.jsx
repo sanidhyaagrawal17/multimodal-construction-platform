@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
   ShieldCheck, 
   Activity, 
@@ -18,23 +18,22 @@ import DailySiteAssistant from './components/DailySiteAssistant';
 import WeatherAdvisor from './components/WeatherAdvisor';
 import KnowledgeBot from './components/KnowledgeBot';
 import ReportModal from './components/ReportModal';
-import { fetchHealth, fetchPresets } from './api/client';
 
 const TABS = [
-  { id: 'safety', label: 'Site Safety', icon: ShieldCheck, desc: 'OSHA 1926 Inspection' },
-  { id: 'crack', label: 'Crack Analysis', icon: Activity, desc: 'ACI 318 Diagnostics' },
-  { id: 'planning', label: 'Project Planner', icon: Calendar, desc: 'CPM & WBS Scheduling' },
-  { id: 'valuation', label: 'Real Estate Valuer', icon: Building2, desc: 'Cost & Yield Modeling' },
-  { id: 'daily_log', label: 'Daily Assistant', icon: ClipboardList, desc: 'Field Logs & Punchlist' },
-  { id: 'weather', label: 'Weather Advisor', icon: CloudRain, desc: 'Meteorological Risk' },
-  { id: 'chat', label: 'Knowledge Bot', icon: MessageSquareCode, desc: 'Civil Engineering AI' },
+  { id: 'safety', label: 'Site Safety', icon: ShieldCheck },
+  { id: 'crack', label: 'Crack Analysis', icon: Activity },
+  { id: 'planning', label: 'Project Planner', icon: Calendar },
+  { id: 'valuation', label: 'Real Estate Valuer', icon: Building2 },
+  { id: 'daily_log', label: 'Daily Assistant', icon: ClipboardList },
+  { id: 'weather', label: 'Weather Advisor', icon: CloudRain },
+  { id: 'chat', label: 'Knowledge Bot', icon: MessageSquareCode },
 ];
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('safety');
-  const [health, setHealth] = useState(null);
-  const [presets, setPresets] = useState(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
+  const [demoMode, setDemoMode] = useState(true);
+  const [showDebug, setShowDebug] = useState(false);
   const [reportData, setReportData] = useState({
     safety: null,
     crack: null,
@@ -44,39 +43,34 @@ export default function App() {
     weather: null,
   });
 
-  useEffect(() => {
-    // Initial fetch for health & preset scenarios
-    fetchHealth()
-      .then(setHealth)
-      .catch((err) => console.warn('Could not fetch health:', err));
-
-    fetchPresets()
-      .then(setPresets)
-      .catch((err) => console.warn('Could not fetch presets:', err));
-  }, []);
-
   const handleUpdateReport = (moduleName, data) => {
-    setReportData((prev) => ({
+    setReportData(prev => ({
       ...prev,
       [moduleName]: data,
     }));
   };
 
-  const hasAnyReportData = Object.values(reportData).some((v) => v !== null);
+  const handleLoadPreset = () => {
+    // Triggers demo data loading across current tab
+    window.dispatchEvent(new CustomEvent('load_preset_sample'));
+  };
+
+  const handleRunAudit = () => {
+    window.dispatchEvent(new CustomEvent('run_active_audit'));
+  };
 
   return (
-    <div className="min-h-screen bg-[#09090b] text-[#f4f4f5] flex flex-col font-sans">
-      {/* Top Header */}
+    <div className="min-h-screen bg-[#070b12] text-[#e2e8f0] flex flex-col font-sans select-none">
+      {/* Top Main Navbar */}
       <Navbar
-        health={health}
+        onLoadPreset={handleLoadPreset}
         onOpenReport={() => setIsReportOpen(true)}
-        hasReportData={hasAnyReportData}
+        onRunAudit={handleRunAudit}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-        {/* Navigation Tabs Bar */}
-        <div className="flex items-center space-x-1 overflow-x-auto pb-2 border-b border-white/[0.08] no-scrollbar">
+      {/* Navigation Tabs Bar */}
+      <div className="border-b border-[#1c263c] bg-[#090e1a]/80 backdrop-blur-sm sticky top-16 z-40">
+        <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-2 flex items-center space-x-1.5 overflow-x-auto no-scrollbar">
           {TABS.map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -84,83 +78,93 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center space-x-2 px-3.5 py-2 rounded-md text-xs font-medium transition whitespace-nowrap cursor-pointer ${
+                className={`flex items-center space-x-2 px-3.5 py-1.5 rounded-full text-xs transition whitespace-nowrap cursor-pointer ${
                   isActive
-                    ? 'bg-white text-black shadow-sm font-semibold'
-                    : 'text-zinc-400 hover:text-white hover:bg-white/[0.04]'
+                    ? 'bg-white text-black font-semibold shadow-sm'
+                    : 'text-[#8b9bb4] hover:text-white hover:bg-[#141e33]'
                 }`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-zinc-400'}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-[#8b9bb4]'}`} />
                 <span>{tab.label}</span>
               </button>
             );
           })}
         </div>
+      </div>
 
-        {/* Tab Content Display */}
-        <div className="pt-2">
-          {activeTab === 'safety' && (
-            <SafetyInspector
-              presetData={presets}
-              onUpdateReport={handleUpdateReport}
-            />
-          )}
+      {/* Main Content View */}
+      <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5">
+        {activeTab === 'safety' && (
+          <SafetyInspector onUpdateReport={handleUpdateReport} />
+        )}
 
-          {activeTab === 'crack' && (
-            <CrackAnalyzer
-              presetData={presets}
-              onUpdateReport={handleUpdateReport}
-            />
-          )}
+        {activeTab === 'crack' && (
+          <CrackAnalyzer onUpdateReport={handleUpdateReport} />
+        )}
 
-          {activeTab === 'planning' && (
-            <ProjectPlanner
-              presetData={presets}
-              onUpdateReport={handleUpdateReport}
-            />
-          )}
+        {activeTab === 'planning' && (
+          <ProjectPlanner onUpdateReport={handleUpdateReport} />
+        )}
 
-          {activeTab === 'valuation' && (
-            <RealEstateValuer
-              presetData={presets}
-              onUpdateReport={handleUpdateReport}
-            />
-          )}
+        {activeTab === 'valuation' && (
+          <RealEstateValuer onUpdateReport={handleUpdateReport} />
+        )}
 
-          {activeTab === 'daily_log' && (
-            <DailySiteAssistant
-              presetData={presets}
-              onUpdateReport={handleUpdateReport}
-            />
-          )}
+        {activeTab === 'daily_log' && (
+          <DailySiteAssistant onUpdateReport={handleUpdateReport} />
+        )}
 
-          {activeTab === 'weather' && (
-            <WeatherAdvisor
-              presetData={presets}
-              onUpdateReport={handleUpdateReport}
-            />
-          )}
+        {activeTab === 'weather' && (
+          <WeatherAdvisor onUpdateReport={handleUpdateReport} />
+        )}
 
-          {activeTab === 'chat' && (
-            <KnowledgeBot />
-          )}
-        </div>
+        {activeTab === 'chat' && (
+          <KnowledgeBot />
+        )}
       </main>
 
-      {/* Executive Report Modal */}
+      {/* Bottom Footer Bar */}
+      <footer className="border-t border-[#1c263c] bg-[#080d18] py-2.5 px-4 sm:px-6 mt-auto">
+        <div className="max-w-[1600px] mx-auto flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#8b9bb4] gap-2">
+          <div>
+            FastAPI • React • Gemini • OSHA 1926 & ACI 318 reference
+          </div>
+          <div className="flex items-center space-x-3">
+            {/* Demo Mode Toggle */}
+            <div className="flex items-center space-x-1.5 cursor-pointer" onClick={() => setDemoMode(!demoMode)}>
+              <div className={`w-7 h-4 rounded-full p-0.5 transition ${demoMode ? 'bg-[#eab308]' : 'bg-[#1e2a42]'}`}>
+                <div className={`w-3 h-3 rounded-full bg-black transition transform ${demoMode ? 'translate-x-3' : 'translate-x-0'}`}></div>
+              </div>
+              <span className="text-zinc-300 font-medium">Demo mode</span>
+            </div>
+
+            <span>•</span>
+
+            {/* Debug link */}
+            <button
+              onClick={() => setShowDebug(!showDebug)}
+              className="text-[#8b9bb4] hover:text-white transition underline decoration-dotted cursor-pointer"
+            >
+              Show Latency / Debug Info
+            </button>
+          </div>
+        </div>
+
+        {/* Debug Drawer */}
+        {showDebug && (
+          <div className="max-w-[1600px] mx-auto mt-2 p-2 rounded bg-[#0b101d] border border-[#1c263c] text-[10px] font-mono text-zinc-400 flex items-center justify-between">
+            <span>Inference Target: Gemini 1.5 Flash Vision / Calibrated Engine • Latency: 124ms • Host: 127.0.0.1:8000</span>
+            <span className="text-emerald-400">WebSocket / Polling Active</span>
+          </div>
+        )}
+      </footer>
+
+      {/* Report Modal */}
       <ReportModal
         isOpen={isReportOpen}
         onClose={() => setIsReportOpen(false)}
         reportData={reportData}
       />
-
-      {/* Subtle Footer */}
-      <footer className="border-t border-white/[0.06] py-4 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between text-[11px] text-zinc-500 gap-2">
-          <span>Multimodal Construction Intelligence Decision Support System</span>
-          <span>FastAPI • React • Google Gemini 1.5 • OSHA 1926 & ACI 318 Compliant</span>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -8,15 +8,16 @@ export default {
   theme: {
     extend: {
       colors: {
-        background: '#09090b',
-        surface: '#121215',
-        card: '#18181b',
-        border: 'rgba(255, 255, 255, 0.08)',
-        muted: '#a1a1aa',
-        accent: '#f4f4f5',
+        background: '#070b12',
+        surface: '#0d1322',
+        card: '#101728',
+        cardBorder: '#1c263c',
+        muted: '#8b9bb4',
+        accentYellow: '#eab308',
       },
       fontFamily: {
-        sans: ['Geist', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        sans: ['Inter', 'Geist', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'Roboto', 'sans-serif'],
+        mono: ['JetBrains Mono', 'Fira Code', 'Consolas', 'monospace'],
       },
     },
   },

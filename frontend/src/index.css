@@ -8,35 +8,44 @@
 
 body {
   margin: 0;
-  font-family: 'Geist', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #09090b;
-  color: #f4f4f5;
+  font-family: 'Inter', 'Geist', -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #070b12;
+  color: #e2e8f0;
   -webkit-font-smoothing: antialiased;
 }
 
-/* Minimalist Custom Scrollbar */
+/* Minimalist Tactical Scrollbar */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
 }
 ::-webkit-scrollbar-track {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
-  border-radius: 3px;
+  background: #1c263c;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: #2b3a58;
 }
 
-/* Subtle glass and borders */
-.subtle-border {
-  border: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.subtle-card {
-  background-color: #121215;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+/* Custom Tactical Card Styles */
+.tactical-card {
+  background-color: #0d1424;
+  border: 1px solid #1c263c;
   border-radius: 8px;
+}
+
+.tactical-inner {
+  background-color: #10182b;
+  border: 1px solid #1a253a;
+  border-radius: 6px;
+}
+
+/* Bounding box animation & HUD accents */
+.hud-box {
+  position: absolute;
+  pointer-events: none;
+  transition: all 0.2s ease-in-out;
 }

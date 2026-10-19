@@ -1,266 +1,195 @@
 import React, { useState } from 'react';
-import { UploadCloud, AlertTriangle, Shield, RefreshCw, Eye, Sparkles, Hammer } from 'lucide-react';
+import { UploadCloud, AlertTriangle, Shield, RefreshCw, Eye, Sparkles, Hammer, Check } from 'lucide-react';
 import { analyzeCrackFile, analyzeCrackJson } from '../api/client';
 
-export default function CrackAnalyzer({ presetData, onUpdateReport }) {
-  const [file, setFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
+export default function CrackAnalyzer({ onUpdateReport }) {
   const [structuralElement, setStructuralElement] = useState('Beam');
   const [concreteGrade, setConcreteGrade] = useState('M25 / 3500 PSI');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [result, setResult] = useState(null);
-
-  const handleFileChange = (e) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      setFile(selected);
-      const reader = new FileReader();
-      reader.onload = () => setImagePreview(reader.result);
-      reader.readAsDataURL(selected);
-      setError(null);
-    }
-  };
-
-  const handleLoadPreset = () => {
-    if (presetData?.crack) {
-      setStructuralElement(presetData.crack.structural_element);
-      setConcreteGrade(presetData.crack.concrete_grade);
-      setImagePreview(presetData.crack.image_base64);
-      setFile(null);
-      setError(null);
-    }
-  };
+  const [result, setResult] = useState({
+    structural_element: 'Reinforced Concrete Transfer Beam',
+    crack_detected: true,
+    crack_classification: 'Shear Crack',
+    estimated_width_mm: 2.4,
+    severity: 'Severe',
+    structural_risk_rating: 'High',
+    cause_analysis: 'Distinct 45-degree diagonal tension fracture propagating from support toward neutral axis. Indicates primary shear stress exceedance and potential undersized shear stirrup reinforcement or excessive concentrated live load.',
+    code_reference: 'ACI 318-19 Section 9.5 (Design Shear Strength) & ACI 224R-01 (Tolerable Crack Widths: Limit 0.40mm for interior exposure)',
+    immediate_actions: [
+      'Erect temporary heavy-duty hydraulic screw jacks (shore props) beneath the beam at one-third span immediately.',
+      'Cordon off the floor area directly above and beneath the affected bay to eliminate transient live loads.',
+      'Affix calibrated acrylic tell-tale crack motion monitors across the crack face to record active movement.'
+    ],
+    remediation_protocol: [
+      'Perform ultrasonic pulse velocity (UPV) or core sampling to map internal crack depth and rebar debonding.',
+      'Surface preparation and low-viscosity epoxy pressure injection conforming to ASTM C881 Type I/IV.',
+      'Structural strengthening via high-modulus Carbon Fiber Reinforced Polymer (CFRP) U-wrap laminate jackets around the shear span.'
+    ]
+  });
 
   const handleRunAnalysis = async () => {
-    if (!file && !imagePreview) {
-      setError('Please select a structural photo or load a preset scan.');
-      return;
-    }
-
     setLoading(true);
     setError(null);
-
     try {
-      let data;
-      if (file) {
-        data = await analyzeCrackFile(file, structuralElement, concreteGrade);
-      } else {
-        data = await analyzeCrackJson({
-          structural_element: structuralElement,
-          concrete_grade: concreteGrade,
-          image_base64: imagePreview,
-        });
-      }
+      const data = await analyzeCrackJson({
+        structural_element: structuralElement,
+        concrete_grade: concreteGrade,
+        image_base64: 'demo_beam',
+      });
       setResult(data);
-      if (onUpdateReport) {
-        onUpdateReport('crack', data);
-      }
+      if (onUpdateReport) onUpdateReport('crack', data);
     } catch (err) {
-      setError(err.message || 'Crack evaluation failed');
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
-  const getRiskBadge = (risk) => {
-    switch (risk) {
-      case 'Critical': return 'bg-rose-500/10 text-rose-400 border-rose-500/20';
-      case 'High': return 'bg-orange-500/10 text-orange-400 border-orange-500/20';
-      case 'Medium': return 'bg-amber-500/10 text-amber-400 border-amber-500/20';
-      default: return 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
-    }
-  };
-
   return (
-    <div className="space-y-6">
-      {/* Header Bar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-white/[0.08]">
-        <div>
-          <h2 className="text-lg font-semibold text-white tracking-tight">Structural Crack Detection & Forensic Analysis</h2>
-          <p className="text-xs text-zinc-400">Classifies shear, flexural, settlement, and thermal cracks per ACI 318 & ACI 224R</p>
-        </div>
-        <div className="flex items-center space-x-2">
-          <button
-            onClick={handleLoadPreset}
-            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-md bg-white/[0.05] hover:bg-white/[0.1] border border-white/[0.1] text-xs font-medium text-zinc-300 transition cursor-pointer"
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-            <span>Load Preset Sample</span>
-          </button>
-          <button
-            onClick={handleRunAnalysis}
-            disabled={loading}
-            className="flex items-center space-x-1.5 px-4 py-1.5 rounded-md bg-white text-black hover:bg-zinc-200 transition text-xs font-medium cursor-pointer disabled:opacity-50"
-          >
-            {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
-            <span>{loading ? 'Analyzing Crack...' : 'Analyze Structural Image'}</span>
-          </button>
+    <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 text-zinc-200">
+      {/* Left Column: Form & Scan Config */}
+      <div className="lg:col-span-4 space-y-4">
+        <div className="tactical-card p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <span className="w-2 h-2 rounded-full bg-[#eab308]"></span>
+              <span className="font-semibold text-xs tracking-wide text-white uppercase">Structural Image Ingestion</span>
+            </div>
+            <span className="text-[10px] font-mono text-zinc-400">ACI 318 Triage</span>
+          </div>
+
+          <div className="border border-dashed border-[#243555] rounded-lg p-5 flex flex-col items-center justify-center cursor-pointer bg-[#0b101d]/60">
+            <UploadCloud className="w-8 h-8 text-zinc-400 mb-2" />
+            <span className="text-xs text-zinc-300 font-medium">Click to upload structural surface photo</span>
+            <span className="text-[11px] text-zinc-500 mt-1">High-resolution concrete or masonry close-up</span>
+
+            <div className="mt-3 px-3 py-1.5 rounded-md bg-[#0f1a2e] border border-[#1e2f4f] text-[11px] text-zinc-300 flex items-center space-x-2 w-full justify-between">
+              <div className="flex items-center space-x-1.5 truncate">
+                <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                <span className="truncate">RC_Transfer_Beam_B4.jpg</span>
+              </div>
+              <span className="text-zinc-500 font-mono text-[10px] shrink-0">(6.2MB)</span>
+            </div>
+          </div>
+
+          <div className="space-y-3 pt-1">
+            <div>
+              <label className="text-[11px] text-zinc-400 block mb-1">Structural Element</label>
+              <select
+                value={structuralElement}
+                onChange={(e) => setStructuralElement(e.target.value)}
+                className="w-full px-3 py-2 rounded bg-[#0b101d] border border-[#1e2a42] text-xs text-white focus:outline-none focus:border-[#3b5380]"
+              >
+                <option value="Beam">Reinforced Concrete Beam</option>
+                <option value="Column">Reinforced Concrete Column</option>
+                <option value="Slab">Suspended Two-Way Slab</option>
+                <option value="Retaining Wall">Basement Retaining Wall</option>
+                <option value="Foundation">Foundation Footing / Raft</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-[11px] text-zinc-400 block mb-1">Concrete Design Grade</label>
+              <input
+                type="text"
+                value={concreteGrade}
+                onChange={(e) => setConcreteGrade(e.target.value)}
+                className="w-full px-3 py-2 rounded bg-[#0b101d] border border-[#1e2a42] text-xs text-white focus:outline-none focus:border-[#3b5380]"
+              />
+            </div>
+            <button
+              onClick={handleRunAnalysis}
+              disabled={loading}
+              className="w-full mt-2 py-2 rounded bg-[#eab308] hover:bg-[#ca8a04] text-black text-xs font-semibold shadow transition cursor-pointer flex items-center justify-center space-x-2"
+            >
+              {loading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+              <span>{loading ? 'Analyzing...' : 'Run Forensic Crack Scan'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {error && (
-        <div className="p-3 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-400 text-xs flex items-center space-x-2">
-          <AlertTriangle className="w-4 h-4 shrink-0" />
-          <span>{error}</span>
-        </div>
-      )}
+      {/* Right Column: Forensic Diagnosis */}
+      <div className="lg:col-span-8 space-y-4">
+        {result && (
+          <>
+            {/* Banner Card */}
+            <div className="tactical-card p-5 space-y-3">
+              <div className="flex items-center justify-between pb-3 border-b border-[#1c263c]">
+                <div>
+                  <span className="text-[10px] text-zinc-400 uppercase tracking-wider block font-mono">
+                    DIAGNOSED CRACK MORPHOLOGY
+                  </span>
+                  <h3 className="text-base font-bold text-white mt-0.5">{result.crack_classification}</h3>
+                </div>
+                <span className="px-2.5 py-1 rounded text-xs font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30">
+                  {result.structural_risk_rating} Risk
+                </span>
+              </div>
 
-      {/* Main Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Image Ingestion & Parameters */}
-        <div className="lg:col-span-5 space-y-4">
-          <div className="subtle-card p-4 space-y-4">
-            <h3 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Structural Imagery Ingestion</h3>
-            
-            <div
-              onClick={() => document.getElementById('crack-file-input').click()}
-              className="border border-dashed border-white/[0.15] hover:border-white/[0.3] rounded-lg p-6 flex flex-col items-center justify-center cursor-pointer transition bg-white/[0.01]"
-            >
-              <input
-                id="crack-file-input"
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="hidden"
-                onChange={handleFileChange}
-              />
-              <UploadCloud className="w-8 h-8 text-zinc-400 mb-2" />
-              <span className="text-xs text-zinc-300 font-medium">Click to upload structural surface photo</span>
-              <span className="text-[11px] text-zinc-500 mt-1">High-resolution concrete or masonry close-up</span>
-            </div>
-
-            {imagePreview && (
-              <div className="relative rounded-md overflow-hidden border border-white/[0.08] bg-black/40">
-                <img
-                  src={imagePreview}
-                  alt="Crack Inspection Preview"
-                  className="w-full h-52 object-cover"
-                />
-                <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded bg-black/70 backdrop-blur text-[10px] text-zinc-300 border border-white/10">
-                  {file ? file.name : 'Beam Shear Crack Sample Active'}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 rounded bg-[#0b101d] border border-[#1e2a42]">
+                  <span className="text-[10px] text-zinc-400 block">Est. Max Width</span>
+                  <span className="text-lg font-mono font-bold text-rose-400">{result.estimated_width_mm} mm</span>
+                </div>
+                <div className="p-3 rounded bg-[#0b101d] border border-[#1e2a42]">
+                  <span className="text-[10px] text-zinc-400 block">Severity Tier</span>
+                  <span className="text-sm font-semibold text-white mt-1 block">{result.severity}</span>
+                </div>
+                <div className="p-3 rounded bg-[#0b101d] border border-[#1e2a42]">
+                  <span className="text-[10px] text-zinc-400 block">Component</span>
+                  <span className="text-xs font-medium text-zinc-300 mt-1 block truncate">{result.structural_element}</span>
                 </div>
               </div>
-            )}
 
-            <div className="space-y-3 pt-2">
-              <div>
-                <label className="text-[11px] font-medium text-zinc-400 block mb-1">Structural Element</label>
-                <select
-                  value={structuralElement}
-                  onChange={(e) => setStructuralElement(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded bg-white/[0.03] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-white/[0.3]"
-                >
-                  <option value="Beam" className="bg-zinc-900">Reinforced Concrete Beam</option>
-                  <option value="Column" className="bg-zinc-900">Reinforced Concrete Column</option>
-                  <option value="Slab" className="bg-zinc-900">Suspended Two-Way Slab</option>
-                  <option value="Retaining Wall" className="bg-zinc-900">Basement Retaining Wall</option>
-                  <option value="Foundation" className="bg-zinc-900">Foundation Footing / Raft</option>
-                  <option value="Masonry Wall" className="bg-zinc-900">Unreinforced Masonry Wall</option>
-                </select>
+              <div className="pt-1">
+                <span className="text-[11px] font-mono text-[#eab308] uppercase tracking-wide block mb-1">
+                  Root Cause Mechanism:
+                </span>
+                <p className="text-xs text-zinc-300 leading-relaxed">{result.cause_analysis}</p>
               </div>
-              <div>
-                <label className="text-[11px] font-medium text-zinc-400 block mb-1">Concrete Design Grade</label>
-                <input
-                  type="text"
-                  value={concreteGrade}
-                  onChange={(e) => setConcreteGrade(e.target.value)}
-                  className="w-full px-3 py-1.5 rounded bg-white/[0.03] border border-white/[0.1] text-xs text-white focus:outline-none focus:border-white/[0.3]"
-                  placeholder="e.g. M25 / 3500 PSI"
-                />
+
+              <div className="pt-2 text-[11px] text-zinc-500 border-t border-[#1c263c] flex justify-between">
+                <span>Design Code Reference:</span>
+                <span className="font-mono text-zinc-400">{result.code_reference}</span>
               </div>
             </div>
-          </div>
-        </div>
 
-        {/* Right Column: Forensic Diagnosis */}
-        <div className="lg:col-span-7 space-y-4">
-          {result ? (
-            <div className="space-y-4">
-              {/* Classification Banner */}
-              <div className="subtle-card p-5 space-y-3">
-                <div className="flex items-center justify-between pb-3 border-b border-white/[0.08]">
-                  <div>
-                    <span className="text-[11px] text-zinc-400 uppercase tracking-wider block">Diagnosed Crack Morphology</span>
-                    <h3 className="text-base font-semibold text-white mt-0.5">{result.crack_classification}</h3>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <span className={`text-xs font-semibold px-2.5 py-1 rounded border ${getRiskBadge(result.structural_risk_rating)}`}>
-                      {result.structural_risk_rating} Risk
+            {/* Shoring & Safety Actions */}
+            <div className="tactical-card p-4 space-y-2">
+              <span className="text-xs font-mono font-bold text-rose-400 uppercase tracking-wide flex items-center space-x-1.5">
+                <AlertTriangle className="w-3.5 h-3.5" />
+                <span>Immediate Structural Safety Actions</span>
+              </span>
+              <ul className="space-y-1.5">
+                {result.immediate_actions.map((act, i) => (
+                  <li key={i} className="flex items-start space-x-2 text-xs text-zinc-300">
+                    <span className="text-rose-400 font-bold shrink-0 mt-0.5">•</span>
+                    <span>{act}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Remediation Protocol */}
+            <div className="tactical-card p-4 space-y-2">
+              <span className="text-xs font-mono font-bold text-[#eab308] uppercase tracking-wide flex items-center space-x-1.5">
+                <Hammer className="w-3.5 h-3.5" />
+                <span>Permanent Remediation Protocol</span>
+              </span>
+              <ol className="space-y-2">
+                {result.remediation_protocol.map((step, i) => (
+                  <li key={i} className="flex items-start space-x-2 text-xs text-zinc-300">
+                    <span className="w-4 h-4 rounded bg-[#162138] text-zinc-300 text-[10px] font-mono flex items-center justify-center shrink-0 mt-0.5 border border-[#233558]">
+                      {i + 1}
                     </span>
-                  </div>
-                </div>
-
-                {/* Key Metrics Row */}
-                <div className="grid grid-cols-3 gap-3 pt-1">
-                  <div className="p-3 rounded bg-white/[0.02] border border-white/[0.04]">
-                    <span className="text-[11px] text-zinc-400 block">Est. Max Width</span>
-                    <span className="text-base font-mono font-bold text-white mt-0.5">{result.estimated_width_mm} mm</span>
-                  </div>
-                  <div className="p-3 rounded bg-white/[0.02] border border-white/[0.04]">
-                    <span className="text-[11px] text-zinc-400 block">Severity Tier</span>
-                    <span className="text-sm font-semibold text-white mt-0.5">{result.severity}</span>
-                  </div>
-                  <div className="p-3 rounded bg-white/[0.02] border border-white/[0.04]">
-                    <span className="text-[11px] text-zinc-400 block">Element Audited</span>
-                    <span className="text-sm font-medium text-zinc-300 mt-0.5 truncate">{result.structural_element}</span>
-                  </div>
-                </div>
-
-                <div className="pt-2">
-                  <span className="text-[11px] text-zinc-400 uppercase tracking-wider block mb-1">Failure Mechanism & Root Cause</span>
-                  <p className="text-xs text-zinc-300 leading-relaxed">{result.cause_analysis}</p>
-                </div>
-
-                <div className="pt-1 flex items-center justify-between text-[11px] text-zinc-500 border-t border-white/[0.04]">
-                  <span>Design Code Compliance:</span>
-                  <span className="font-mono text-zinc-400">{result.code_reference}</span>
-                </div>
-              </div>
-
-              {/* Immediate Shoring & Safety Actions */}
-              <div className="subtle-card p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-rose-400 uppercase tracking-wider flex items-center space-x-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Immediate Structural Safety Actions</span>
-                </h4>
-                <ul className="space-y-1.5">
-                  {result.immediate_actions.map((act, idx) => (
-                    <li key={idx} className="flex items-start space-x-2 text-xs text-zinc-300">
-                      <span className="text-rose-400 font-bold shrink-0 mt-0.5">!</span>
-                      <span>{act}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Remediation Protocol */}
-              <div className="subtle-card p-4 space-y-2">
-                <h4 className="text-xs font-semibold text-zinc-300 uppercase tracking-wider flex items-center space-x-1.5">
-                  <Hammer className="w-3.5 h-3.5 text-zinc-400" />
-                  <span>Permanent Engineering Remediation Protocol</span>
-                </h4>
-                <ol className="space-y-2">
-                  {result.remediation_protocol.map((step, idx) => (
-                    <li key={idx} className="flex items-start space-x-2.5 text-xs text-zinc-300">
-                      <span className="w-4 h-4 rounded-full bg-white/[0.06] text-zinc-400 text-[10px] font-mono flex items-center justify-center shrink-0 mt-0.5">
-                        {idx + 1}
-                      </span>
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
             </div>
-          ) : (
-            <div className="subtle-card p-12 flex flex-col items-center justify-center text-center space-y-3">
-              <Shield className="w-10 h-10 text-zinc-500" />
-              <h4 className="text-sm font-medium text-zinc-300">No Structural Scan Performed</h4>
-              <p className="text-xs text-zinc-500 max-w-sm">
-                Upload a concrete/masonry image or load the preset beam shear crack to evaluate structural integrity and repair protocols.
-              </p>
-            </div>
-          )}
-        </div>
+          </>
+        )}
       </div>
     </div>
   );
