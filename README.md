@@ -1,14 +1,14 @@
 # AI-Powered Multimodal Construction Intelligence Platform
 
+[![Streamlit App](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/deploy?repository=sanidhyaagrawal17/multimodal-construction-platform&branch=main&mainModule=app.py)
 [![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.110+-009688.svg)](https://fastapi.tiangolo.com/)
 [![React](https://img.shields.io/badge/React-18.2+-61DAFB.svg)](https://react.dev/)
-[![TailwindCSS](https://img.shields.io/badge/Tailwind-3.4+-38B2AC.svg)](https://tailwindcss.com/)
-[![Google Gemini](https://img.shields.io/badge/Google_Gemini-Multimodal_Vision-4285F4.svg)](https://deepmind.google/technologies/gemini/)
+[![Google Gemini](https://img.shields.io/badge/Google_Gemini-Free_Tier_(Flash_Lite)-4285F4.svg)](https://deepmind.google/technologies/gemini/)
 [![Standards](https://img.shields.io/badge/Compliance-OSHA_1926_|_ACI_318-orange.svg)](https://www.osha.gov/laws-regs/regulations/standardnumber/1926)
 [![Tests](https://img.shields.io/badge/Tests-9_Passed_100%25-brightgreen.svg)]()
 
-> A full-stack, enterprise-grade decision-support system designed to assist construction professionals across planning, execution, and monitoring. Fusing multimodal Artificial Intelligence (Google Gemini 1.5/2.0) with deterministic civil engineering heuristics, the platform analyzes site photos, structural imagery, and project parameters to deliver actionable, code-grounded insights.
+> A full-stack, enterprise-grade decision-support system designed to assist construction professionals across planning, execution, and monitoring. Fusing multimodal Artificial Intelligence (Google Gemini Free Tier) with deterministic civil engineering heuristics, the platform analyzes site photos, structural imagery, and project parameters to deliver actionable, code-grounded insights.
 
 ---
 
