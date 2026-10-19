@@ -6,7 +6,8 @@
 [![React](https://img.shields.io/badge/React-18.2+-61DAFB.svg)](https://react.dev/)
 [![Google Gemini](https://img.shields.io/badge/Google_Gemini-Free_Tier_(Flash)-4285F4.svg)](https://ai.google.dev/)
 [![Standards](https://img.shields.io/badge/Compliance-OSHA_1926_|_ACI_318-orange.svg)](https://www.osha.gov/laws-regs/regulations/standardnumber/1926)
-[![Tests](https://img.shields.io/badge/Tests-14_Passed_100%25-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Tests-15_Passed_100%25-brightgreen.svg)]()
+[![CI Test Suite](https://github.com/sanidhyaagrawal17/multimodal-construction-platform/actions/workflows/ci.yml/badge.svg)](https://github.com/sanidhyaagrawal17/multimodal-construction-platform/actions/workflows/ci.yml)
 
 > A full-stack decision-support platform designed to assist construction field supervisors, civil engineers, and safety auditors across planning, execution, and monitoring. Fusing multimodal Artificial Intelligence (Google Gemini free-tier vision endpoints) with deterministic civil engineering heuristics, the platform analyzes site photos, structural imagery, and project parameters to deliver actionable, code-grounded insights.
 
