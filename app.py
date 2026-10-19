@@ -1,8 +1,10 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import json
 import os
 import io
 import time
+import datetime
 from PIL import Image, ImageDraw, ImageFont
 import google.generativeai as genai
 
@@ -14,9 +16,15 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# --- MODERN TACTICAL DARK CSS ---
+# --- MODERN TACTICAL DARK CSS & CLIPBOARD ENABLER ---
 st.markdown("""
 <style>
+    * {
+        -webkit-user-select: text !important;
+        -moz-user-select: text !important;
+        -ms-user-select: text !important;
+        user-select: text !important;
+    }
     .main-title { font-size: 2.1rem; font-weight: 800; color: #f8fafc; margin-bottom: 0.2rem; }
     .sub-title { font-size: 1.0rem; color: #94a3b8; margin-bottom: 1.5rem; }
     .tactical-card {
@@ -35,6 +43,37 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 import base64
+
+# --- CLIPBOARD INTEGRATION SUITE ---
+PASTE_COMPONENT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "components", "paste_button")
+if os.path.exists(PASTE_COMPONENT_DIR):
+    try:
+        _custom_paste_func = components.declare_component("custom_paste_button", path=PASTE_COMPONENT_DIR)
+    except Exception:
+        _custom_paste_func = None
+else:
+    _custom_paste_func = None
+
+def get_clipboard_image(key="paste_btn", label="📋 Paste Image from Clipboard (Ctrl+V)"):
+    """Fetch an image directly from system clipboard via browser clipboard API."""
+    if _custom_paste_func is not None:
+        try:
+            val = _custom_paste_func(label=label, key=key)
+            if val and isinstance(val, str) and ";base64," in val:
+                _, b64data = val.split(";base64,")
+                return Image.open(io.BytesIO(base64.b64decode(b64data)))
+        except Exception:
+            pass
+
+    # Secondary fallback to installed streamlit_paste_button
+    try:
+        from streamlit_paste_button import paste_image_button
+        res = paste_image_button(label, key=f"spb_{key}", background_color="#0f172a", text_color="#38bdf8", hover_background_color="#1e293b")
+        if res and res.image_data:
+            return res.image_data
+    except Exception:
+        pass
+    return None
 
 # --- PROTECTED API VAULT & FREE MODEL CONFIG ---
 # --- PROTECTED API VAULT & ZERO-BILLING FREE MODEL CONFIG ---
@@ -539,7 +578,11 @@ with tab1:
     col1, col2 = st.columns([7, 5])
     
     with col1:
-        img_source = st.radio("Select Image Input:", ["Use Preloaded Scaffolding Elevation Sample", "Upload Custom Site Photo"], horizontal=True)
+        img_source = st.radio(
+            "Select Image Input:",
+            ["Use Preloaded Scaffolding Elevation Sample", "Upload Custom Site Photo", "📋 Paste from Clipboard (Ctrl+V)"],
+            horizontal=True
+        )
         
         selected_img = None
         if img_source == "Use Preloaded Scaffolding Elevation Sample":
@@ -554,10 +597,33 @@ with tab1:
                     break
             if not selected_img:
                 selected_img = Image.new("RGB", (1280, 720), color=(30, 41, 59))
+        elif img_source == "📋 Paste from Clipboard (Ctrl+V)":
+            st.info("💡 Copy any image (e.g. use **Win + Shift + S** to snip an image or right-click 'Copy Image'), then click the button below:")
+            pasted_safety = get_clipboard_image(key="safety_paste_primary", label="📋 Paste Image from Clipboard (Ctrl+V)")
+            if pasted_safety:
+                st.session_state["safety_pasted_img"] = pasted_safety
+                st.session_state["live_safety_data"] = None  # Reset analysis for new image
+                st.success("✅ Image successfully pasted from clipboard!")
+            if "safety_pasted_img" in st.session_state and st.session_state["safety_pasted_img"]:
+                selected_img = st.session_state["safety_pasted_img"]
+            else:
+                st.caption("Waiting for clipboard image paste...")
         else:
-            uploaded_safety = st.file_uploader("Upload Site Photo (JPG, PNG)", type=["jpg", "jpeg", "png"], key="safety_upload")
-            if uploaded_safety:
-                selected_img = Image.open(uploaded_safety)
+            col_u1, col_u2 = st.columns([3, 2])
+            with col_u1:
+                uploaded_safety = st.file_uploader("Upload Site Photo (JPG, PNG)", type=["jpg", "jpeg", "png"], key="safety_upload")
+                if uploaded_safety:
+                    selected_img = Image.open(uploaded_safety)
+            with col_u2:
+                st.caption("Or paste directly:")
+                pasted_safety_alt = get_clipboard_image(key="safety_paste_alt", label="📋 Paste from Clipboard")
+                if pasted_safety_alt:
+                    selected_img = pasted_safety_alt
+                    st.session_state["safety_pasted_img"] = pasted_safety_alt
+                    st.session_state["live_safety_data"] = None
+                    st.success("✅ Clipboard image loaded!")
+            if not selected_img and "safety_pasted_img" in st.session_state:
+                selected_img = st.session_state["safety_pasted_img"]
 
         # Persistent state for live analysis
         if "live_safety_data" not in st.session_state:
@@ -720,6 +786,44 @@ with tab1:
             3. **Documentation:** Log formal non-conformance report and require toolbox talk sign-off before next shift.
             """)
 
+        # --- ONE-CLICK COPY REPORT TO CLIPBOARD ---
+        rep_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        rep_hz_score = live_safety_data.get('hazard_score', 84) if live_safety_data else 84
+        rep_fall_risk = live_safety_data.get('fall_risk_pct', 88) if live_safety_data else 88
+        
+        report_md = f"""# OSHA 1926 Safety & Fall Protection Inspection Report
+- Date/Timestamp: {rep_date}
+- Governing Engineering Standards: OSHA 1926.501 (Fall Protection), OSHA 1926.100 (PPE), OSHA 1926.451 (Scaffolding)
+- Total Hazard Risk Score: {rep_hz_score} / 100
+- Fall Risk Index: {rep_fall_risk}%
+- Workers Detected: {w_count} Active
+- PPE Compliance: {ppe_pct}% (Strict OSHA 1926.100)
+
+## Detected Visual Infractions & Telemetry
+"""
+        if live_safety_data and "detections" in live_safety_data:
+            for d in live_safety_data.get("detections", []):
+                report_md += f"- [{d.get('severity', 'Notice').upper()}] {d.get('label', 'Detection')} ({d.get('osha_standard', 'OSHA Standard')}): {d.get('description', '')}\n"
+        else:
+            report_md += "- [CRITICAL] OSHA 1926.501(b)(1) - Zone B • Level 4: Worker positioned within 18 inches of leading edge without active fall arrest tie-off.\n"
+            report_md += "- [MODERATE] OSHA 1926.451(g)(1) - Bay 4C Standard: Perimeter midrail missing between vertical standards. Missing outward-facing 3.5\" toeboard.\n"
+
+        report_md += "\n## Mandatory Corrective Protocols\n"
+        if live_safety_data and "actions" in live_safety_data and len(live_safety_data.get("actions", [])) > 0:
+            for idx, act in enumerate(live_safety_data.get("actions", [])):
+                if isinstance(act, dict):
+                    report_md += f"{act.get('step', str(idx+1))}. [{act.get('type', 'ACTION')}]: {act.get('text', '')}\n"
+                else:
+                    report_md += f"{idx+1}. {act}\n"
+        else:
+            report_md += "1. Immediate Action: Halt ironwork on Cantilever B-4. Direct worker to connect dual self-retracting lanyard to rated horizontal lifeline immediately.\n"
+            report_md += "2. Engineering Fix: Direct scaffold contractor to reinstall 42\" top-rail, 21\" mid-rail, and 3.5\" toe-board on Bay 4C prior to resuming concrete work.\n"
+            report_md += "3. Documentation: Log formal non-conformance report and require toolbox talk sign-off before next shift.\n"
+
+        with st.expander("📋 One-Click Copy: Formatted OSHA Report (Markdown)", expanded=False):
+            st.caption("Click the copy icon in the upper-right corner of the code block to copy the full audit report to your clipboard:")
+            st.code(report_md, language="markdown")
+
 # ==========================================
 # TAB 2: CRACK DIAGNOSTICS & ACI 318
 # ==========================================
@@ -733,7 +837,20 @@ with tab2:
         elem = st.selectbox("Component Type", ["Reinforced Concrete Transfer Beam", "RC Column", "Suspended Slab", "Shear Wall", "Foundation Footing"])
         concrete_grade = st.selectbox("Specified Design Grade", ["M25 / 3500 PSI", "M30 / 4350 PSI", "M40 / 5800 PSI", "M50 / 7250 PSI"])
         
-        uploaded_crack = st.file_uploader("Upload Structural Element Photo (Optional)", type=["jpg", "jpeg", "png"], key="crack_upload")
+        crack_input_choice = st.radio("Element Photo Input:", ["Upload Element Photo", "📋 Paste from Clipboard (Ctrl+V)"], horizontal=True, key="crack_input_radio")
+        crack_img = None
+        if crack_input_choice == "📋 Paste from Clipboard (Ctrl+V)":
+            pasted_crack = get_clipboard_image(key="crack_paste_btn", label="📋 Paste Element Photo from Clipboard (Ctrl+V)")
+            if pasted_crack:
+                st.session_state["pasted_crack_img"] = pasted_crack
+                st.success("✅ Crack photo pasted from clipboard!")
+            if "pasted_crack_img" in st.session_state and st.session_state["pasted_crack_img"]:
+                crack_img = st.session_state["pasted_crack_img"]
+                st.image(crack_img, caption="Pasted Structural Element", width=300)
+        else:
+            uploaded_crack = st.file_uploader("Upload Structural Element Photo (Optional)", type=["jpg", "jpeg", "png"], key="crack_upload")
+            if uploaded_crack:
+                crack_img = Image.open(uploaded_crack)
         
         run_crack_scan = st.button("Run Forensic Crack Scan", type="primary")
 
@@ -741,14 +858,15 @@ with tab2:
             st.session_state["live_crack_data"] = None
 
         if run_crack_scan:
-            if active_key and uploaded_crack:
+            if active_key and crack_img:
                 with st.spinner(f"Forensically diagnosing concrete defect with {active_model_name}..."):
-                    crack_img = Image.open(uploaded_crack)
                     st.session_state["live_crack_data"] = call_gemini_multimodal(
                         crack_img, 
                         f"Component: {elem}, Grade: {concrete_grade}\n{CRACK_PROMPT}",
                         system_instruction=CRACK_SYSTEM_PROMPT
                     )
+            elif not crack_img:
+                st.info("ℹ️ Running benchmark simulation for specified concrete parameters (upload or paste a photo for live vision analysis).")
 
         live_crack_data = st.session_state.get("live_crack_data")
 
@@ -792,6 +910,29 @@ with tab2:
             - 🧪 **Epoxy Injection:** Low-viscosity epoxy pressure injection conforming to ASTM C881 Type I/IV.
             - 🛡️ **CFRP Strengthening:** Apply high-modulus Carbon Fiber Reinforced Polymer (CFRP) U-wrap laminate jackets around shear span.
             """)
+
+        # --- ONE-CLICK COPY FORENSIC ACI 318 REPORT ---
+        crack_report_md = f"""# ACI 318-19 Forensic Concrete Defect & Crack Diagnostic Report
+- Date/Timestamp: {datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+- Component Type: {elem}
+- Specified Concrete Grade: {concrete_grade}
+- Diagnosed Crack Morphology: {morph}
+- Structural Risk Rating: {risk_tier}
+- Estimated Crack Width: {w_mm} mm (ACI 224R-01 Tolerable Limit: {lim_mm} mm)
+- Severity Level: {sev}
+
+## Root Cause Analysis
+{cause}
+
+## Urgent Remediation & Shoring Protocol
+1. Immediate Shoring: Erect temporary heavy-duty hydraulic screw jacks beneath beam at one-third span immediately.
+2. NDT Inspection: Perform UPV (ultrasonic pulse velocity) testing to map internal crack depth and rebar debonding.
+3. Epoxy Pressure Injection: Conforming to ASTM C881 Type I/IV.
+4. CFRP Strengthening: High-modulus Carbon Fiber Reinforced Polymer U-wraps around shear span.
+"""
+        with st.expander("📋 One-Click Copy: Forensic ACI 318 Report (Markdown)", expanded=False):
+            st.caption("Click the copy icon in the upper-right corner to copy the complete forensic report to your clipboard:")
+            st.code(crack_report_md, language="markdown")
 
 # ==========================================
 # TAB 3: CPM PLANNING & ASSET VALUATION
@@ -926,6 +1067,9 @@ with tab5:
                 if ans:
                     st.markdown(f"**Question:** {q_final}")
                     st.markdown(ans)
+                    with st.expander("📋 One-Click Copy: Code Answer (Markdown)", expanded=False):
+                        st.caption("Click the copy icon in the upper-right corner to copy this advisory response to your clipboard:")
+                        st.code(f"**Engineering Inquiry:** {q_final}\n\n**Regulatory Answer:**\n{ans}", language="markdown")
         else:
             with st.spinner("Consulting building code specifications..."):
                 time.sleep(0.5)
@@ -942,6 +1086,9 @@ with tab5:
                 - `ACI 305R-20 Guide to Hot Weather Concreting`
                 - `ASTM C309 Standard Specification for Liquid Membrane-Forming Compounds`
                 """)
+                with st.expander("📋 One-Click Copy: Code Answer (Markdown)", expanded=False):
+                    st.caption("Click the copy icon in the upper-right corner to copy this advisory response to your clipboard:")
+                    st.code(f"**Engineering Inquiry:** {q_final}\n\n**Regulatory Answer (ACI 308R):**\nAccording to ACI 308R, standard Ordinary Portland Cement requires a minimum moist curing period of 7 days, or until at least 70% of specified 28-day compressive strength (f'c) is attained. For high-early-strength concrete (Type III), minimum duration is 3 days.", language="markdown")
 
 st.markdown("---")
 st.caption("Multimodal Construction Intelligence Platform • Certified for Skill Wallet Capstone Submission • Built with Streamlit, FastAPI, and Google Gemini Multimodal AI")
