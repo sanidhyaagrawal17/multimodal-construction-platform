@@ -190,28 +190,43 @@ def draw_dynamic_annotations(base_image, detections):
     w, h = img.size
 
     for d in detections:
+        # Universal bounding box coordinate extractor
+        bx, by, bw, bh = 0.0, 0.0, 0.1, 0.1
         if "box_2d" in d and isinstance(d["box_2d"], (list, tuple)) and len(d["box_2d"]) == 4:
-            box = d["box_2d"]
-            ymin, xmin, ymax, xmax = float(box[0]), float(box[1]), float(box[2]), float(box[3])
-            if ymax > 1.0 or xmax > 1.0:
-                ymin /= 1000.0
-                xmin /= 1000.0
-                ymax /= 1000.0
-                xmax /= 1000.0
-            bx = xmin
-            by = ymin
-            bw = max(0.01, xmax - xmin)
-            bh = max(0.01, ymax - ymin)
+            ymin, xmin, ymax, xmax = [float(v) for v in d["box_2d"]]
+            if ymax > 1.0 or xmax > 1.0 or ymin > 1.0 or xmin > 1.0:
+                ymin, xmin, ymax, xmax = ymin / 1000.0, xmin / 1000.0, ymax / 1000.0, xmax / 1000.0
+            bx = min(xmin, xmax)
+            by = min(ymin, ymax)
+            bw = max(0.01, abs(xmax - xmin))
+            bh = max(0.01, abs(ymax - ymin))
         else:
             bbox = d.get("bbox", {})
-            bx = float(bbox.get("x", 0.0))
-            by = float(bbox.get("y", 0.0))
-            bw = float(bbox.get("w", 0.1))
-            bh = float(bbox.get("h", 0.1))
+            if isinstance(bbox, dict):
+                x1 = float(bbox.get("x", bbox.get("x1", bbox.get("xmin", 0.0))))
+                y1 = float(bbox.get("y", bbox.get("y1", bbox.get("ymin", 0.0))))
+                if "x2" in bbox or "xmax" in bbox:
+                    x2 = float(bbox.get("x2", bbox.get("xmax", x1 + 100.0)))
+                    y2 = float(bbox.get("y2", bbox.get("ymax", y1 + 100.0)))
+                    if x1 > 1.0 or y1 > 1.0 or x2 > 1.0 or y2 > 1.0:
+                        x1, y1, x2, y2 = x1 / 1000.0, y1 / 1000.0, x2 / 1000.0, y2 / 1000.0
+                    bx = min(x1, x2)
+                    by = min(y1, y2)
+                    bw = max(0.01, abs(x2 - x1))
+                    bh = max(0.01, abs(y2 - y1))
+                else:
+                    w = float(bbox.get("w", bbox.get("width", 100.0)))
+                    h = float(bbox.get("h", bbox.get("height", 100.0)))
+                    if x1 > 1.0 or y1 > 1.0 or w > 1.0 or h > 1.0:
+                        x1, y1, w, h = x1 / 1000.0, y1 / 1000.0, w / 1000.0, h / 1000.0
+                    bx = x1
+                    by = y1
+                    bw = max(0.01, w)
+                    bh = max(0.01, h)
 
         # Clamp normalized coordinates to [0.0, 1.0]
-        bx = max(0.0, min(0.99, bx))
-        by = max(0.0, min(0.99, by))
+        bx = max(0.0, min(0.98, bx))
+        by = max(0.0, min(0.98, by))
         bw = max(0.01, min(1.0 - bx, bw))
         bh = max(0.01, min(1.0 - by, bh))
 
