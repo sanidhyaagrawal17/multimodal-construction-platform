@@ -19,7 +19,7 @@
 
 | Mode | Technology | Primary Use Case | Quick Access |
 | :--- | :--- | :--- | :--- |
-| **1. Streamlit Live App (`app.py`)** | Streamlit + Gemini Vision + Python PIL | **Recommended for quick grading and evaluator demos.** Zero-configuration interactive web app with live camera paste, canvas overlays, and 1-click clipboard export. | **[Live Demo URL](https://construction-intelligence-ai.streamlit.app)** or `streamlit run app.py` |
+| **1. Streamlit Live App (`app.py`)** | Streamlit + Gemini Vision + Python PIL | **Recommended for rapid interactive evaluation.** Zero-configuration interactive web app with live camera paste, canvas overlays, and 1-click clipboard export. | **[Live Demo URL](https://construction-intelligence-ai.streamlit.app)** or `streamlit run app.py` |
 | **2. Modular Full-Stack (`backend/` + `frontend/`)** | FastAPI + React 18 + Vite + Docker Compose | **Recommended for modular microservice inspection.** RESTful API contracts (OpenAPI/Swagger), Pydantic v2 data serialization, and Vite dark-mode interface. | `docker compose up` or `.\start_dev.bat` |
 
 ---
@@ -27,9 +27,9 @@
 ## 📑 Table of Contents
 1. [Project Overview & Core Features](#-project-overview--core-features)
 2. [Dual Architecture & Technical Layout](#-dual-architecture--technical-layout)
-3. [Curriculum & Epics Traceability Matrix](#-curriculum--epics-traceability-matrix)
+3. [Functional Modules & Verification Matrix](#-functional-modules--verification-matrix)
 4. [Quick Start Guide](#-quick-start-guide)
-5. [Mentor & Evaluator Demo Walkthrough](#-mentor--evaluator-demo-walkthrough)
+5. [System Demonstration Walkthrough](#-system-demonstration-walkthrough)
 6. [Automated Verification & Test Suite](#-automated-verification--test-suite)
 7. [Civil Engineering & Safety Standards Grounding](#-civil-engineering--safety-standards-grounding)
 8. [Engineering Limitations & Human-in-the-Loop Principles](#-engineering-limitations--human-in-the-loop-principles)
@@ -94,7 +94,7 @@ multimodal-construction-platform/
 │   └── Dockerfile           # Multi-stage Nginx production container
 ├── docs/
 │   ├── assets/              # Interface screenshots and diagram graphics
-│   ├── REQUIREMENTS.md      # Functional requirements & curriculum traceability
+│   ├── REQUIREMENTS.md      # Functional specifications & engineering requirements
 │   ├── ARCHITECTURE.md      # System architecture & sequence diagrams
 │   └── API_SPECIFICATION.md # Complete REST contract documentation
 ├── docker-compose.yml       # Multi-container stack orchestrator
@@ -105,25 +105,25 @@ multimodal-construction-platform/
 
 ---
 
-## 📋 Curriculum & Epics Traceability Matrix
+## 📋 Functional Modules & Verification Matrix
 
-| Curriculum Epic | Assigned Activity | Implementation Component | Verification Status |
+| Module | Engineering Scope | Implementation Component | Verification Status |
 | :--- | :--- | :--- | :---: |
-| **Epic 1** | Activity 1.1: Functional Requirements | `docs/REQUIREMENTS.md` | Completed & Documented |
-| **Epic 1** | Activity 1.2: Environment Setup | `backend/requirements.txt`, `backend/.venv` | Installed & Verified |
-| **Epic 2** | Activity 2.1: Safety Image Analysis | `backend/app/services/safety_service.py`, `app.py` Tab 1 | Tested (OSHA 1926) |
-| **Epic 2** | Activity 2.2: Crack Detection Logic | `backend/app/services/crack_service.py`, `app.py` Tab 2 | Tested (ACI 318 / 224R) |
-| **Epic 3** | Activity 3.1: Construction Planning | `backend/app/services/planning_service.py`, `app.py` Tab 3 | Tested (CPM / WBS) |
-| **Epic 3** | Activity 3.2: Real Estate Valuation | `backend/app/services/valuation_service.py`, `app.py` Tab 3 | Tested (Cap Rate & Yield) |
-| **Epic 4** | Activity 4.1: Multimodal AI Integration | `gemini-2.5-flash` / `gemini-2.5-flash-lite` / `gemini-3.5-flash` | Live + Calibrated Fallback |
-| **Epic 4** | Activity 4.2: Structured Data Contracts | `backend/app/schemas/`, `OSHA_HAZARD_REGISTRY` | Strict Pydantic & Canonical Registry |
-| **Epic 4** | Activity 4.3: Context-Aware Reasoning | OSHA 1926 & ACI 318 Domain Heuristics | NMS Deduplication & Edge Guardrails |
-| **Epic 5** | Activity 5.1: Construction Chatbot | `backend/app/services/chat_service.py`, `app.py` Tab 5 | Interactive Code Assistant |
-| **Epic 5** | Activity 5.2: Daily Site Assistant | `backend/app/services/daily_log_service.py`, `app.py` Tab 4 | Automated Punch List |
-| **Epic 5** | Activity 5.3: Weather Risk Advisory | `backend/app/services/weather_service.py`, `app.py` Tab 4 | Meteorological Trade Matrix |
-| **Epic 6** | Activity 6.1: Interface & End-to-End | Streamlit (`app.py`) + React 18 / Vite Frontend | Responsive & Deployed |
-| **Epic 6** | Activity 6.2: System Validation | `backend/tests/` (23 automated tests) | **23 / 23 Passed (100%)** |
-| **Epic 6** | Activity 6.3: Deployment Readiness | Streamlit Cloud + Docker Compose | **Live Online** |
+| **System Specifications** | Functional & Code Compliance Requirements | `docs/REQUIREMENTS.md` | Completed & Documented |
+| **Infrastructure** | Containerization & Virtual Environment Setup | `backend/requirements.txt`, `backend/.venv` | Installed & Verified |
+| **Site Safety** | OSHA 1926 Computer Vision Audit | `backend/app/services/safety_service.py`, `app.py` Tab 1 | Tested (OSHA 1926) |
+| **Structural Forensics** | ACI 318 / 224R Crack Classification Logic | `backend/app/services/crack_service.py`, `app.py` Tab 2 | Tested (ACI 318 / 224R) |
+| **Project Planning** | CPM Scheduling & WBS Synthesis | `backend/app/services/planning_service.py`, `app.py` Tab 3 | Tested (CPM / WBS) |
+| **Asset Valuation** | Quantitative DCF & Valuation Modeling | `backend/app/services/valuation_service.py`, `app.py` Tab 3 | Tested (Cap Rate & Yield) |
+| **Multimodal Vision** | Google Gemini Vision & Heuristic Fallback | `gemini-2.5-flash` / `gemini-2.5-flash-lite` | Live + Calibrated Fallback |
+| **Data Contracts** | Strict Pydantic v2 Schema Enforcement | `backend/app/schemas/`, `OSHA_HAZARD_REGISTRY` | Strict Pydantic & Canonical Registry |
+| **Spatial Heuristics** | Bounding Box Clamping, NMS & Guardrails | OSHA 1926 & ACI 318 Domain Heuristics | NMS Deduplication & Edge Guardrails |
+| **Knowledge Assistant** | Conversational Engineering Code Bot | `backend/app/services/chat_service.py`, `app.py` Tab 5 | Interactive Code Assistant |
+| **Field Operations** | Supervisor Notes & Daily Punch Lists | `backend/app/services/daily_log_service.py`, `app.py` Tab 4 | Automated Punch List |
+| **Meteorological Risk**| Weather Workability & Cold/Hot Curing Matrix | `backend/app/services/weather_service.py`, `app.py` Tab 4 | Meteorological Trade Matrix |
+| **User Interfaces** | FastAPI REST Services + React / Streamlit UIs | Streamlit (`app.py`) + React 18 / Vite Frontend | Responsive & Deployed |
+| **Quality Assurance** | Automated Pytest Test Suite (23 tests) | `backend/tests/` (23 automated tests) | **23 / 23 Passed (100%)** |
+| **Deployment** | Docker Compose Multi-Service Stack | Streamlit Cloud + Docker Compose | **Production Ready** |
 
 ---
 
@@ -170,14 +170,14 @@ multimodal-construction-platform/
 
 ---
 
-## 🎯 Mentor & Evaluator Demo Walkthrough
+## 🎯 System Demonstration Walkthrough
 
 The platform includes preloaded samples and clipboard pasting for quick evaluation:
 
 ### 1. Site Safety & OSHA 1926 Vision (Tab 1)
 - **Step 1**: Choose **"Use Preloaded Scaffolding Elevation Sample"** (or upload any site photo / click **"📋 Paste from Clipboard"**).
 - **Step 2**: Click **"⚡ Run Live Gemini Vision Audit"**.
-- **Evaluator Observations**:
+- **Audit Observations**:
   - **Status Badge**: Displays `🟢 Live Gemini Vision Analysis (gemini-2.5-flash)` (or `🟡 Offline Demo Mode` if free-tier API quota is exhausted).
   - **Worker Detection**: Detects **2 Active Workers** (`W1`, `W2`) with bounding boxes placed above worker heads with obstacle avoidance.
   - **PPE Compliance**: Shows `Possible non-compliance: head protection not clearly visible` (adheres to truth-first principles for distant/hooded workers rather than claiming a false pass).
@@ -288,8 +288,8 @@ The **Multimodal Construction Intelligence Platform** is an **AI-assisted decisi
 
 ---
 
-## 👤 Author & Academic Attribution
-- **Student / Developer**: Sanidhya
-- **Module**: Generative AI with Google Cloud
-- **Project**: Multimodal Construction Intelligence Platform
+## 👤 Author & Architecture Attribution
+- **Engineer / Developer**: Sanidhya Agrawal
+- **System**: Multimodal Construction Intelligence Platform
+- **Core Stack**: FastAPI, React 18, Streamlit, Google Gemini Vision, Pydantic v2
 - **License**: MIT
