@@ -231,11 +231,7 @@ def render_copy_output_widget(content_text, download_filename="construction_audi
         st.code(content_text, language="markdown")
 
 
-# --- PROTECTED API VAULT & FREE MODEL CONFIG ---
-# --- PROTECTED API VAULT & ZERO-BILLING FREE MODEL CONFIG ---
-# Deobfuscated at runtime to protect from automated git secret scrapers
-_VAULT_BYTES = b'QVEuQWI4Uk42SWxEZi02U212TlZfWkxtMkl1UjF1Q3hUbVVHS2hRMmxzXzFtQWxUZ3lSenc='
-
+# --- FREE MODEL CONFIG & KEY HANDLING ---
 # Strictly restricted to Google AI Studio Free Tier endpoints. Paid models (Gemini 4 Argon) are permanently excluded.
 FREE_MODELS_CASCADE = [
     "gemini-2.5-flash",       # Primary Google AI Studio GA Multimodal Model
@@ -246,7 +242,7 @@ FREE_MODELS_CASCADE = [
 ]
 
 def get_protected_key():
-    # 1. Check Streamlit Cloud Secrets
+    # 1. Check Streamlit Cloud Secrets first
     try:
         if hasattr(st, "secrets") and "GEMINI_API_KEY" in st.secrets:
             k = st.secrets["GEMINI_API_KEY"].strip()
@@ -258,11 +254,8 @@ def get_protected_key():
     env_k = os.environ.get("GEMINI_API_KEY", "").strip()
     if env_k:
         return env_k
-    # 3. Fallback to Protected Built-in Vault
-    try:
-        return base64.b64decode(_VAULT_BYTES).decode("utf-8").strip()
-    except Exception:
-        return ""
+    # 3. No fallback key - returns empty string
+    return ""
 
 active_key = get_protected_key()
 
@@ -292,7 +285,15 @@ if active_key:
     except Exception as e:
         st.sidebar.error(f"AI Engine Notification: {e}")
 else:
-    st.sidebar.info("🛡️ Calibrated Engineering Baseline Active")
+    st.sidebar.markdown("""
+    <div style="background: #090e1a; border: 1px solid #1c263c; border-left: 3px solid #f59e0b; border-radius: 6px; padding: 10px 14px; margin-bottom: 14px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="height: 8px; width: 8px; background-color: #f59e0b; border-radius: 50%; display: inline-block;"></span>
+            <span style="font-size: 12px; font-weight: bold; color: #f8fafc;">Demo mode: fixed sample output</span>
+        </div>
+        <div style="font-size: 11px; color: #94a3b8; margin-top: 3px;">No GEMINI_API_KEY found • Heuristic fallback active</div>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.sidebar.markdown("---")
 st.sidebar.markdown("""
@@ -316,6 +317,17 @@ st.sidebar.markdown("""
 # --- MAIN HEADER ---
 st.markdown("<div class='main-title'>🏗️ Multimodal Construction Intelligence Platform</div>", unsafe_allow_html=True)
 st.markdown("<div class='sub-title'>Decision-support system for site safety vision (OSHA 1926), structural crack forensics (ACI 318), CPM planning, and real estate valuation.</div>", unsafe_allow_html=True)
+
+if not active_key:
+    st.markdown("""
+    <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 6px; padding: 10px 14px; margin: 10px 0 16px 0; display: flex; align-items: center; gap: 10px;">
+        <span style="font-size: 16px;">⚠️</span>
+        <div>
+            <strong style="color: #fbbf24; font-size: 12px;">Demo mode: fixed sample output</strong>
+            <span style="color: #94a3b8; font-size: 12px; margin-left: 8px;">GEMINI_API_KEY is not set. All modules are demonstrating calibrated civil engineering benchmark samples.</span>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 # --- TABS ---
 tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -1374,11 +1386,11 @@ with tab1:
                         </span>
                     </div>
                     """, unsafe_allow_html=True)
-                elif audit_source == "offline_fallback":
+                elif audit_source == "offline_fallback" or not active_key:
                     st.markdown("""
                     <div style="margin: 4px 0 8px 0;">
                         <span style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
-                            🟡 Offline Demo Mode (API Quota Limit / Calibrated Heuristic Engine)
+                            🟡 Demo mode: fixed sample output (Heuristic Fallback)
                         </span>
                     </div>
                     """, unsafe_allow_html=True)
@@ -1386,7 +1398,7 @@ with tab1:
                     st.markdown("""
                     <div style="margin: 4px 0 8px 0;">
                         <span style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
-                            🔵 Preloaded Benchmark Sample (Click '⚡ Run Live Gemini Vision Audit' for real-time model inference)
+                            🔵 Demo mode: fixed sample output (Benchmark Sample)
                         </span>
                     </div>
                     """, unsafe_allow_html=True)
