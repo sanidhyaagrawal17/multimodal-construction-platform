@@ -1344,17 +1344,24 @@ with tab1:
 
         st.caption(f"🛡️ Session Quota: {st.session_state['session_audit_count']} / {MAX_SESSION_AUDITS} audits performed")
 
-        if selected_img and active_key and st.button("⚡ Run Live Gemini Vision Audit", type="primary"):
-            if st.session_state["session_audit_count"] >= MAX_SESSION_AUDITS:
-                st.error(f"⚠️ Per-session request limit reached ({MAX_SESSION_AUDITS} audits). Please refresh your browser window to start a fresh audit session.")
-            elif check_rate_limit("safety_vision"):
-                st.session_state["session_audit_count"] += 1
-                with st.spinner(f"Executing computer vision safety inspection with {active_model_name}..."):
-                    raw_data = call_gemini_multimodal(selected_img, SAFETY_PROMPT, system_instruction=SAFETY_SYSTEM_PROMPT)
-                    if raw_data:
-                        st.session_state["unified_safety_audit"] = build_unified_audit_findings(raw_data)
-                        st.session_state["safety_audit_source"] = "live_gemini"
-                    else:
+        if selected_img:
+            btn_label = "⚡ Run Live Gemini Vision Audit" if active_key else "⚡ Run Audit (Demo mode: fixed sample output)"
+            if st.button(btn_label, type="primary" if active_key else "secondary"):
+                if active_key:
+                    if st.session_state["session_audit_count"] >= MAX_SESSION_AUDITS:
+                        st.error(f"⚠️ Per-session request limit reached ({MAX_SESSION_AUDITS} audits). Please refresh your browser window to start a fresh audit session.")
+                    elif check_rate_limit("safety_vision"):
+                        st.session_state["session_audit_count"] += 1
+                        with st.spinner(f"Executing computer vision safety inspection with {active_model_name}..."):
+                            raw_data = call_gemini_multimodal(selected_img, SAFETY_PROMPT, system_instruction=SAFETY_SYSTEM_PROMPT)
+                            if raw_data:
+                                st.session_state["unified_safety_audit"] = build_unified_audit_findings(raw_data)
+                                st.session_state["safety_audit_source"] = "live_gemini"
+                            else:
+                                st.session_state["unified_safety_audit"] = build_unified_audit_findings(None)
+                                st.session_state["safety_audit_source"] = "offline_fallback"
+                else:
+                    with st.spinner("Executing calibrated safety inspection (Demo mode: fixed sample output)..."):
                         st.session_state["unified_safety_audit"] = build_unified_audit_findings(None)
                         st.session_state["safety_audit_source"] = "offline_fallback"
 
@@ -1474,8 +1481,11 @@ with tab1:
                         </div>
                         """, unsafe_allow_html=True)
             else:
-                st.image(selected_img, caption="Uploaded Site Photo (Ready for Live Vision Inspection)", use_container_width=True)
-                st.info("👆 Click **'⚡ Run Live Gemini Vision Audit'** above to detect workers, evaluate PPE compliance, and map OSHA 1926 hazards.")
+                st.image(selected_img, caption="Uploaded Site Photo (Ready for Safety Audit)", use_container_width=True)
+                if active_key:
+                    st.info("👆 Click **'⚡ Run Live Gemini Vision Audit'** above to detect workers, evaluate PPE compliance, and map OSHA 1926 hazards.")
+                else:
+                    st.info("👆 Click **'⚡ Run Audit (Demo mode: fixed sample output)'** above to view calibrated OSHA 1926 benchmark detections.")
 
     with col2:
         st.markdown("#### ⚠️ OSHA Risk Assessment")
@@ -1606,8 +1616,11 @@ with tab2:
                         f"Component: {elem}, Grade: {concrete_grade}\n{CRACK_PROMPT}",
                         system_instruction=CRACK_SYSTEM_PROMPT
                     )
-            elif not crack_img:
-                st.info("ℹ️ Running benchmark simulation for specified concrete parameters (upload or paste a photo for live vision analysis).")
+            elif not crack_img or not active_key:
+                if not active_key:
+                    st.info("ℹ️ Running in **Demo mode: fixed sample output** with calibrated ACI 318 crack parameters.")
+                else:
+                    st.info("ℹ️ Running benchmark simulation for specified concrete parameters (upload or paste a photo for live vision analysis).")
 
         live_crack_data = st.session_state.get("live_crack_data")
 
@@ -1619,7 +1632,7 @@ with tab2:
         lim_mm = live_crack_data.get("tolerable_limit_mm", 0.40) if live_crack_data else 0.40
         cause = live_crack_data.get("cause_analysis", "Distinct 45-degree diagonal tension fracture propagating from support toward neutral axis. Indicates primary shear stress exceedance and potential undersized shear stirrup reinforcement or excessive concentrated live load.") if live_crack_data else "Distinct 45-degree diagonal tension fracture propagating from support toward neutral axis. Indicates primary shear stress exceedance and potential undersized shear stirrup reinforcement or excessive concentrated live load."
 
-        if live_crack_data:
+        if live_crack_data and active_key:
             st.markdown(f"""
             <div style="margin-bottom: 8px;">
                 <span style="background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
@@ -1630,8 +1643,8 @@ with tab2:
         else:
             st.markdown("""
             <div style="margin-bottom: 8px;">
-                <span style="background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
-                    🔵 Calibrated ACI 318 Benchmark Profile (Upload photo & click 'Run Forensic Crack Scan' for live vision)
+                <span style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                    🟡 Demo mode: fixed sample output (Calibrated ACI 318 Engine)
                 </span>
             </div>
             """, unsafe_allow_html=True)
@@ -1764,23 +1777,50 @@ with tab4:
             height=100
         )
 
-        parse_notes = st.button("Extract Highlights with AI", type="primary")
+        parse_notes = st.button("Extract Highlights with AI", type="primary" if active_key else "secondary")
         
-        if parse_notes and active_key:
-            with st.spinner(f"Extracting field operations intelligence with {active_model_name}..."):
-                prompt = f"""
-                Analyze these construction daily field notes:
-                "{notes_input}"
-                Extract in 3 bulleted sections:
-                1. Progress Highlights
-                2. Delays and Bottlenecks
-                3. Next-Day Action Items
-                """
-                ai_notes = call_gemini_text(prompt, system_instruction="You are an expert construction site superintendent AI.")
-                if ai_notes:
-                    st.markdown(ai_notes)
-                    st.markdown("---")
-                    render_copy_output_widget(ai_notes, download_filename="daily_field_intelligence.md", label="📋 Copy Field Notes Analysis", show_code_block=False)
+        if parse_notes:
+            if active_key:
+                with st.spinner(f"Extracting field operations intelligence with {active_model_name}..."):
+                    prompt = f"""
+                    Analyze these construction daily field notes:
+                    "{notes_input}"
+                    Extract in 3 bulleted sections:
+                    1. Progress Highlights
+                    2. Delays and Bottlenecks
+                    3. Next-Day Action Items
+                    """
+                    ai_notes = call_gemini_text(prompt, system_instruction="You are an expert construction site superintendent AI.")
+                    if ai_notes:
+                        st.markdown(ai_notes)
+                        st.markdown("---")
+                        render_copy_output_widget(ai_notes, download_filename="daily_field_intelligence.md", label="📋 Copy Field Notes Analysis", show_code_block=False)
+            else:
+                st.markdown("""
+                <div style="margin-bottom: 8px;">
+                    <span style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                        🟡 Demo mode: fixed sample output (Domain NLP Parser)
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
+                default_notes_md = """# Daily Field Operations & Progress Intelligence
+**Automated Progress Highlights:**
+- ✅ Completed scheduled structural concrete pour and surface finishing (120 yd³).
+- ✅ Reinforcement steel delivery offloaded, inventoried, and tied.
+- ✅ Column cages completed for Floor 4 frame.
+
+**Trade Delays & Bottlenecks:**
+- ⏱️ Transit mixer delayed **1.5 hrs** due to highway accident (standby crew overtime).
+- ⏱️ Subcontractor absenteeism: **4 masons** missing.
+
+**Next-Day Action Punch List:**
+1. Conduct 24-hr compressive strength cylinder break checks on slab pour.
+2. Verify rebar spacing and cover block placement for Floor 4.
+3. Reconfirm ready-mix delivery schedule to prevent logistics delay recurrence.
+"""
+                st.markdown(default_notes_md)
+                st.markdown("---")
+                render_copy_output_widget(default_notes_md, download_filename="daily_progress_report.md", label="📋 Copy Daily Site Report", show_code_block=False)
         else:
             default_notes_md = """# Daily Field Operations & Progress Intelligence
 **Automated Progress Highlights:**
@@ -1838,8 +1878,15 @@ with tab5:
                     st.markdown("---")
                     render_copy_output_widget(f"**Engineering Inquiry:** {q_final}\n\n**Regulatory Answer:**\n{ans}", download_filename="code_advisory_answer.md", label="📋 Copy Code Answer to Clipboard")
         else:
-            with st.spinner("Consulting building code specifications..."):
-                time.sleep(0.5)
+            with st.spinner("Consulting building code specifications (Demo mode: fixed sample output)..."):
+                time.sleep(0.3)
+                st.markdown("""
+                <div style="margin-bottom: 8px;">
+                    <span style="background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.4); color: #fbbf24; padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: bold; display: inline-flex; align-items: center; gap: 6px;">
+                        🟡 Demo mode: fixed sample output (Building Code Advisory)
+                    </span>
+                </div>
+                """, unsafe_allow_html=True)
                 st.markdown(f"""
                 **Question:** {q_final}
                 
@@ -1858,5 +1905,5 @@ with tab5:
                 render_copy_output_widget(code_ans_md, download_filename="code_advisory_answer.md", label="📋 Copy Code Answer to Clipboard")
 
 st.markdown("---")
-st.caption("Multimodal Construction Intelligence Platform • Certified for Skill Wallet Capstone Submission • Built with Streamlit, FastAPI, and Google Gemini Multimodal AI")
+st.caption("Multimodal Construction Intelligence Platform • Built with Streamlit, FastAPI, and Google Gemini Multimodal Vision")
 
