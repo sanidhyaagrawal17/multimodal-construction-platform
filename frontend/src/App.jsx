@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { 
   ShieldCheck, 
   Activity, 
@@ -12,12 +12,14 @@ import {
 import Navbar from './components/Navbar';
 import SafetyInspector from './components/SafetyInspector';
 import CrackAnalyzer from './components/CrackAnalyzer';
-import ProjectPlanner from './components/ProjectPlanner';
-import RealEstateValuer from './components/RealEstateValuer';
-import DailySiteAssistant from './components/DailySiteAssistant';
-import WeatherAdvisor from './components/WeatherAdvisor';
-import KnowledgeBot from './components/KnowledgeBot';
-import ReportModal from './components/ReportModal';
+
+// Performance optimization: code-split secondary modules with React.lazy
+const ProjectPlanner = lazy(() => import('./components/ProjectPlanner'));
+const RealEstateValuer = lazy(() => import('./components/RealEstateValuer'));
+const DailySiteAssistant = lazy(() => import('./components/DailySiteAssistant'));
+const WeatherAdvisor = lazy(() => import('./components/WeatherAdvisor'));
+const KnowledgeBot = lazy(() => import('./components/KnowledgeBot'));
+const ReportModal = lazy(() => import('./components/ReportModal'));
 
 const TABS = [
   { id: 'safety', label: 'Site Safety', icon: ShieldCheck },
@@ -94,36 +96,38 @@ export default function App() {
 
       {/* Main Content View */}
       <main className="flex-1 max-w-[1600px] w-full mx-auto px-4 sm:px-6 py-5">
-        {activeTab === 'safety' && (
-          <SafetyInspector 
-            uiState={uiState} 
-            onUpdateReport={handleUpdateReport} 
-          />
-        )}
+        <Suspense fallback={<div className="flex items-center justify-center p-12 text-zinc-400 font-mono text-xs" role="status" aria-live="polite">Loading module...</div>}>
+          {activeTab === 'safety' && (
+            <SafetyInspector 
+              uiState={uiState} 
+              onUpdateReport={handleUpdateReport} 
+            />
+          )}
 
-        {activeTab === 'crack' && (
-          <CrackAnalyzer onUpdateReport={handleUpdateReport} />
-        )}
+          {activeTab === 'crack' && (
+            <CrackAnalyzer onUpdateReport={handleUpdateReport} />
+          )}
 
-        {activeTab === 'planning' && (
-          <ProjectPlanner onUpdateReport={handleUpdateReport} />
-        )}
+          {activeTab === 'planning' && (
+            <ProjectPlanner onUpdateReport={handleUpdateReport} />
+          )}
 
-        {activeTab === 'valuation' && (
-          <RealEstateValuer onUpdateReport={handleUpdateReport} />
-        )}
+          {activeTab === 'valuation' && (
+            <RealEstateValuer onUpdateReport={handleUpdateReport} />
+          )}
 
-        {activeTab === 'daily_log' && (
-          <DailySiteAssistant onUpdateReport={handleUpdateReport} />
-        )}
+          {activeTab === 'daily_log' && (
+            <DailySiteAssistant onUpdateReport={handleUpdateReport} />
+          )}
 
-        {activeTab === 'weather' && (
-          <WeatherAdvisor onUpdateReport={handleUpdateReport} />
-        )}
+          {activeTab === 'weather' && (
+            <WeatherAdvisor onUpdateReport={handleUpdateReport} />
+          )}
 
-        {activeTab === 'chat' && (
-          <KnowledgeBot />
-        )}
+          {activeTab === 'chat' && (
+            <KnowledgeBot />
+          )}
+        </Suspense>
       </main>
 
       {/* Bottom Footer Bar */}
@@ -183,11 +187,13 @@ export default function App() {
       </footer>
 
       {/* Report Modal */}
-      <ReportModal
-        isOpen={isReportOpen}
-        onClose={() => setIsReportOpen(false)}
-        reportData={reportData}
-      />
+      <Suspense fallback={null}>
+        <ReportModal
+          isOpen={isReportOpen}
+          onClose={() => setIsReportOpen(false)}
+          reportData={reportData}
+        />
+      </Suspense>
     </div>
   );
 }
