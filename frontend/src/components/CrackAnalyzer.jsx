@@ -75,8 +75,10 @@ export default function CrackAnalyzer({ onUpdateReport }) {
 
           <div className="space-y-3 pt-1">
             <div>
-              <label className="text-[11px] text-zinc-400 block mb-1">Structural Element</label>
+              <label htmlFor="structural-element-select" className="text-[11px] text-zinc-400 block mb-1">Structural Element</label>
               <select
+                id="structural-element-select"
+                aria-label="Structural Element"
                 value={structuralElement}
                 onChange={(e) => setStructuralElement(e.target.value)}
                 className="w-full px-3 py-2 rounded bg-[#0b101d] border border-[#1e2a42] text-xs text-white focus:outline-none focus:border-[#3b5380]"
@@ -89,8 +91,10 @@ export default function CrackAnalyzer({ onUpdateReport }) {
               </select>
             </div>
             <div>
-              <label className="text-[11px] text-zinc-400 block mb-1">Concrete Design Grade</label>
+              <label htmlFor="concrete-grade-input" className="text-[11px] text-zinc-400 block mb-1">Concrete Design Grade</label>
               <input
+                id="concrete-grade-input"
+                aria-label="Concrete Design Grade"
                 type="text"
                 value={concreteGrade}
                 onChange={(e) => setConcreteGrade(e.target.value)}

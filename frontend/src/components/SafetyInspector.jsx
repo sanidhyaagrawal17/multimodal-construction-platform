@@ -62,7 +62,7 @@ const SEVERITY_ORDER = { Critical: 4, High: 3, Moderate: 2, Low: 1, OK: 0, Unver
  * 2. Try positions in order: above, below, inside-bottom, inside-top
  * 3. Choose first position that stays inside image bounds without overlapping any placed label
  */
-function computeLabelPlacements(detections) {
+export function computeLabelPlacements(detections) {
   const sorted = [...detections].sort((a, b) => {
     const pA = SEVERITY_ORDER[a.severity] ?? 0;
     const pB = SEVERITY_ORDER[b.severity] ?? 0;
@@ -380,6 +380,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
               id="file-upload-input"
               type="file"
               accept="image/*"
+              aria-label="Upload site photograph"
               className="hidden"
               onChange={handleFileUpload}
             />
@@ -407,8 +408,10 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
           {/* Project & Zone Inputs */}
           <div className="space-y-3 pt-1">
             <div>
-              <label className="text-[11px] text-zinc-400 block mb-1">Project / Structure Name</label>
+              <label htmlFor="project-name-input" className="text-[11px] text-zinc-400 block mb-1">Project / Structure Name</label>
               <input
+                id="project-name-input"
+                aria-label="Project / Structure Name"
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
@@ -416,8 +419,10 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
               />
             </div>
             <div>
-              <label className="text-[11px] text-zinc-400 block mb-1">Site Work Zone</label>
+              <label htmlFor="site-work-zone-input" className="text-[11px] text-zinc-400 block mb-1">Site Work Zone</label>
               <input
+                id="site-work-zone-input"
+                aria-label="Site Work Zone"
                 type="text"
                 value={siteZone}
                 onChange={(e) => setSiteZone(e.target.value)}
