@@ -62,14 +62,14 @@ export default function CrackAnalyzer({ onUpdateReport }) {
           <div className="border border-dashed border-[#243555] rounded-lg p-5 flex flex-col items-center justify-center cursor-pointer bg-[#0b101d]/60">
             <UploadCloud className="w-8 h-8 text-zinc-400 mb-2" />
             <span className="text-xs text-zinc-300 font-medium">Click to upload structural surface photo</span>
-            <span className="text-[11px] text-zinc-500 mt-1">High-resolution concrete or masonry close-up</span>
+            <span className="text-[11px] text-zinc-400 mt-1">High-resolution concrete or masonry close-up</span>
 
             <div className="mt-3 px-3 py-1.5 rounded-md bg-[#0f1a2e] border border-[#1e2f4f] text-[11px] text-zinc-300 flex items-center space-x-2 w-full justify-between">
               <div className="flex items-center space-x-1.5 truncate">
                 <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                 <span className="truncate">RC_Transfer_Beam_B4.jpg</span>
               </div>
-              <span className="text-zinc-500 font-mono text-[10px] shrink-0">(6.2MB)</span>
+              <span className="text-zinc-400 font-mono text-[10px] shrink-0">(6.2MB)</span>
             </div>
           </div>
 
@@ -153,7 +153,7 @@ export default function CrackAnalyzer({ onUpdateReport }) {
                 <p className="text-xs text-zinc-300 leading-relaxed">{result.cause_analysis}</p>
               </div>
 
-              <div className="pt-2 text-[11px] text-zinc-500 border-t border-[#1c263c] flex justify-between">
+              <div className="pt-2 text-[11px] text-zinc-400 border-t border-[#1c263c] flex justify-between">
                 <span>Design Code Reference:</span>
                 <span className="font-mono text-zinc-400">{result.code_reference}</span>
               </div>

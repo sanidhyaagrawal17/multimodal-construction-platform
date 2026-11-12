@@ -20,7 +20,7 @@ export default function Navbar({ onLoadPreset, onOpenReport, onRunAudit, isAudit
                 <span>Powered by Gemini</span>
               </span>
             </div>
-            <p className="text-[11px] text-[#8b9bb4] hidden md:block">
+            <p className="text-[11px] text-zinc-300 hidden md:block">
               Site Safety Vision & OSHA Compliance Auditor • 29 CFR 1926 Reference
             </p>
           </div>
@@ -30,7 +30,7 @@ export default function Navbar({ onLoadPreset, onOpenReport, onRunAudit, isAudit
         <div className="flex items-center space-x-1.5 sm:space-x-2.5">
           <button
             onClick={onLoadPreset}
-            aria-label="Load preset sample"
+            aria-label="Preset sample"
             className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-md bg-[#111a2e] hover:bg-[#182542] text-zinc-300 border border-[#20304f] text-xs font-medium transition cursor-pointer shadow-sm"
           >
             <Star className="w-3.5 h-3.5 text-[#eab308] fill-[#eab308]" />
@@ -39,17 +39,17 @@ export default function Navbar({ onLoadPreset, onOpenReport, onRunAudit, isAudit
 
           <button
             onClick={onOpenReport}
-            aria-label="Export audit report"
+            aria-label="Export Report"
             className="hidden md:flex items-center space-x-1.5 px-3 py-1.5 rounded-md bg-[#111a2e] hover:bg-[#182542] text-zinc-300 border border-[#20304f] text-xs font-medium transition cursor-pointer shadow-sm"
           >
-            <FileText className="w-3.5 h-3.5 text-zinc-400" />
+            <FileText className="w-3.5 h-3.5 text-zinc-300" />
             <span>Export Report</span>
           </button>
 
           <button
             onClick={onRunAudit}
             disabled={isAuditing}
-            aria-label="Run safety audit"
+            aria-label="Run Audit"
             className="flex items-center space-x-1.5 px-3 sm:px-4 py-1.5 rounded-md bg-[#eab308] hover:bg-[#d97706] text-black text-xs font-semibold shadow transition cursor-pointer disabled:opacity-50"
           >
             <Eye className="w-3.5 h-3.5 text-black" />

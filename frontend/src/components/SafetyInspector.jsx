@@ -365,7 +365,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
             </div>
             <button
               onClick={handleDemoData}
-              className="px-2.5 py-1 rounded bg-[#131d31] hover:bg-[#1a2742] text-[#8b9bb4] hover:text-white text-[11px] font-medium border border-[#223354] transition cursor-pointer"
+              className="px-2.5 py-1 rounded bg-[#131d31] hover:bg-[#1a2742] text-zinc-300 hover:text-white text-[11px] font-medium border border-[#223354] transition cursor-pointer"
             >
               Demo Data
             </button>
@@ -391,7 +391,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
               <span className="text-[#eab308]">Click to upload</span>
               <span className="text-zinc-400"> or drag site image</span>
             </div>
-            <p className="text-[11px] text-zinc-500 mt-1">JPEG, PNG, WebP up to 25MB</p>
+            <p className="text-[11px] text-zinc-400 mt-1">JPEG, PNG, WebP up to 25MB</p>
 
             {/* Active File Pill */}
             {imageFileName && (
@@ -400,7 +400,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
                   <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
                   <span className="truncate">{imageFileName}</span>
                 </div>
-                <span className="text-zinc-500 font-mono text-[10px] shrink-0">({fileSizeStr})</span>
+                <span className="text-zinc-400 font-mono text-[10px] shrink-0">({fileSizeStr})</span>
               </div>
             )}
           </div>
@@ -449,7 +449,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
                 </div>
                 <div>
                   <span className="text-xs font-medium text-white block">Worker Fall Arrest & Tie-Off</span>
-                  <span className="text-[11px] font-mono text-zinc-500">OSHA 1926.501(b)(1) 6ft threshold</span>
+                  <span className="text-[11px] font-mono text-zinc-400">OSHA 1926.501(b)(1) 6ft threshold</span>
                 </div>
               </div>
 
@@ -464,7 +464,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
                 </div>
                 <div>
                   <span className="text-xs font-medium text-white block">Guardrails, Mid-rails & Toe-boards</span>
-                  <span className="text-[11px] font-mono text-zinc-500">OSHA 1926.451(g)(1) perimeter integrity</span>
+                  <span className="text-[11px] font-mono text-zinc-400">OSHA 1926.451(g)(1) perimeter integrity</span>
                 </div>
               </div>
 
@@ -479,7 +479,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
                 </div>
                 <div>
                   <span className="text-xs font-medium text-white block">Hardhat & High-Visibility PPE</span>
-                  <span className="text-[11px] font-mono text-zinc-500">OSHA 1926.100 & ANSI/ISEA 107</span>
+                  <span className="text-[11px] font-mono text-zinc-400">OSHA 1926.100 & ANSI/ISEA 107</span>
                 </div>
               </div>
 
@@ -494,7 +494,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
                 </div>
                 <div>
                   <span className="text-xs font-medium text-white block">Scaffold Plank Deflection & Locking Pins</span>
-                  <span className="text-[11px] font-mono text-zinc-500">OSHA 1926.451(a) structural load limit</span>
+                  <span className="text-[11px] font-mono text-zinc-400">OSHA 1926.451(a) structural load limit</span>
                 </div>
               </div>
             </div>
@@ -508,14 +508,14 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
               <Clock className="w-3.5 h-3.5 text-[#eab308]" />
               <span className="font-semibold tracking-wide uppercase text-[11px] font-mono">RECENT AUDITS</span>
             </div>
-            <span className="text-zinc-500 text-[11px]">Last 3 audits</span>
+            <span className="text-zinc-400 text-[11px]">Last 3 audits</span>
           </div>
 
           <div className="space-y-2">
             <div className="p-2.5 rounded bg-[#0b101d] border border-[#1e2a42] flex items-center justify-between">
               <div>
                 <span className="text-xs font-medium text-white block">Skyline Heights Tower B</span>
-                <span className="text-[10px] text-zinc-500">Today, 14:32</span>
+                <span className="text-[10px] text-zinc-400">Today, 14:32</span>
               </div>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/30">
                 84 FAIL
@@ -525,7 +525,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
             <div className="p-2.5 rounded bg-[#0b101d] border border-[#1e2a42] flex items-center justify-between">
               <div>
                 <span className="text-xs font-medium text-white block">Hudson Yards Core C</span>
-                <span className="text-[10px] text-zinc-500">Yesterday</span>
+                <span className="text-[10px] text-zinc-400">Yesterday</span>
               </div>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
                 22 PASS
@@ -535,7 +535,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
             <div className="p-2.5 rounded bg-[#0b101d] border border-[#1e2a42] flex items-center justify-between">
               <div>
                 <span className="text-xs font-medium text-white block">Pacific Bay Pier 14</span>
-                <span className="text-[10px] text-zinc-500">2 days ago</span>
+                <span className="text-[10px] text-zinc-400">2 days ago</span>
               </div>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30">
                 68 MODERATE
@@ -645,7 +645,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
             {/* Empty Overlay */}
             {uiState === 'empty' && (
               <div className="absolute inset-0 bg-black/85 flex flex-col items-center justify-center space-y-2 p-6 text-center z-20">
-                <UploadCloud className="w-8 h-8 text-zinc-500" />
+                <UploadCloud className="w-8 h-8 text-zinc-400" />
                 <span className="text-sm font-semibold text-white">No Imagery Loaded</span>
                 <span className="text-xs text-zinc-400 max-w-sm">Upload a construction site photograph or click "Demo Data" on the left to start.</span>
               </div>
@@ -674,7 +674,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
                 }`}>
                   {data.ppe_compliance_pct}% {data.ppe_compliance_pct === 100 ? 'Pass' : 'Warning'}
                 </span>
-                <span className="text-[10px] text-zinc-500 font-mono hidden sm:inline">(1 of 1 assessable, 1 unverified)</span>
+                <span className="text-[10px] text-zinc-400 font-mono hidden sm:inline">(1 of 1 assessable, 1 unverified)</span>
               </div>
 
               <div className="flex items-center space-x-2">
@@ -685,7 +685,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
               </div>
             </div>
 
-            <span className="text-[10px] text-zinc-500 font-mono hidden md:inline">Hover box or infraction for details</span>
+            <span className="text-[10px] text-zinc-400 font-mono hidden md:inline">Hover box or infraction for details</span>
           </div>
         </div>
 
@@ -747,7 +747,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
                 <AlertTriangle className="w-3.5 h-3.5 text-[#eab308]" />
                 <span className="font-semibold text-xs tracking-wider uppercase font-mono">OSHA INFRACTION ANALYSIS LOG</span>
               </div>
-              <span className="text-zinc-500 font-mono text-[11px]">{data.infractions.length} Items Flagged</span>
+              <span className="text-zinc-400 font-mono text-[11px]">{data.infractions.length} Items Flagged</span>
             </div>
 
             <div className="space-y-2.5">
@@ -780,7 +780,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
                         </span>
                         <span className="font-mono text-xs font-bold text-white">{inf.osha_standard}</span>
                       </div>
-                      <span className="text-[11px] font-mono text-zinc-500">{inf.location}</span>
+                      <span className="text-[11px] font-mono text-zinc-400">{inf.location}</span>
                     </div>
                     <p className="text-xs text-zinc-300 leading-relaxed">{inf.description}</p>
                   </div>
@@ -796,7 +796,7 @@ export default function SafetyInspector({ uiState = 'results', onUpdateReport })
             <div className="flex items-center space-x-2">
               <span className="w-2 h-2 rounded-full bg-cyan-400"></span>
               <span className="font-semibold text-xs tracking-wide text-white">
-                Recommended Actions & Corrective Protocol <span className="text-zinc-500 font-normal">({data.actions.length} Structured Steps)</span>
+                Recommended Actions & Corrective Protocol <span className="text-zinc-400 font-normal">({data.actions.length} Structured Steps)</span>
               </span>
             </div>
             <ChevronDown className="w-4 h-4 text-zinc-400 cursor-pointer" />
