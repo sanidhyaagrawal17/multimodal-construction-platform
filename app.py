@@ -338,24 +338,60 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "💬 Construction AI Knowledge Bot"
 ])
 
-# --- IN-SESSION RATE LIMITING ---
-LIVE_VISION_COOLDOWN_SEC = 3.0
+# --- ROBUST MULTI-TIER RATE LIMITING ---
+LIVE_VISION_COOLDOWN_SEC = 4.0
+MAX_SESSION_API_CALLS = 25
+MAX_GLOBAL_CALLS_PER_MINUTE = 10
 
-def check_rate_limit(key="safety_vision"):
-    """Prevent rapid-fire API request flooding and protect free-tier quotas."""
+# Module-level sliding-window timestamp tracking across concurrent sessions
+if "_GLOBAL_API_TIMESTAMPS" not in globals():
+    _GLOBAL_API_TIMESTAMPS = []
+
+def enforce_api_rate_limit(operation_name="AI Request"):
+    """
+    Centralized, robust rate-limiting choke point:
+    1. Global sliding-window RPM cap (max 10 calls/minute across all concurrent visitors)
+    2. Per-session anti-spam cooldown (min 4.0s between requests)
+    3. Per-session evaluation quota (max 25 requests per user session)
+    """
+    global _GLOBAL_API_TIMESTAMPS
     now = time.time()
-    last_time = st.session_state.get(f"_last_run_{key}", 0.0)
-    elapsed = now - last_time
+    
+    # 1. Per-session total call cap
+    current_calls = st.session_state.get("_user_total_api_calls", 0)
+    if current_calls >= MAX_SESSION_API_CALLS:
+        st.error(f"🛡️ Session evaluation limit reached ({MAX_SESSION_API_CALLS} requests). Please refresh your browser to start a new evaluation session.")
+        return False
+        
+    # 2. Per-session cooldown (anti-spam)
+    last_call_time = st.session_state.get("_last_api_call_time", 0.0)
+    elapsed = now - last_call_time
     if elapsed < LIVE_VISION_COOLDOWN_SEC:
         remaining = LIVE_VISION_COOLDOWN_SEC - elapsed
-        st.warning(f"⏳ Rate limit active: Please wait {remaining:.1f}s before triggering another live AI vision audit.")
+        st.warning(f"⏳ Rate limit: Please wait {remaining:.1f}s before sending another {operation_name}.")
         return False
-    st.session_state[f"_last_run_{key}"] = now
+        
+    # 3. Global sliding window (protects Google Cloud free-tier quota)
+    _GLOBAL_API_TIMESTAMPS = [t for t in _GLOBAL_API_TIMESTAMPS if now - t < 60.0]
+    if len(_GLOBAL_API_TIMESTAMPS) >= MAX_GLOBAL_CALLS_PER_MINUTE:
+        st.warning("⚠️ High server volume: Global rate limit active (10 RPM). Please wait a few seconds before retrying.")
+        return False
+        
+    # Record and update
+    st.session_state["_last_api_call_time"] = now
+    st.session_state["_user_total_api_calls"] = current_calls + 1
+    _GLOBAL_API_TIMESTAMPS.append(now)
+    return True
+
+def check_rate_limit(key="safety_vision"):
+    """Backward compatibility wrapper for legacy callers."""
     return True
 
 def call_gemini_multimodal(image, prompt, system_instruction=None, json_mode=True):
-    """Execute live multimodal vision inference on full-resolution imagery with zero loss of defect fidelity."""
+    """Execute live multimodal vision inference on full-resolution imagery with strict rate-limit protection."""
     if not active_key:
+        return None
+    if not enforce_api_rate_limit("Vision Analysis"):
         return None
     cascade = [active_model_name] + [m for m in FREE_MODELS_CASCADE if m != active_model_name]
     for m_name in cascade:
@@ -373,13 +409,21 @@ def call_gemini_multimodal(image, prompt, system_instruction=None, json_mode=Tru
             if json_mode:
                 return json.loads(response.text)
             return response.text
-        except Exception:
+        except Exception as e:
+            err_str = str(e).lower()
+            # If rate limited (HTTP 429) or quota exhausted, STOP cascading to prevent quota exhaustion
+            if "429" in err_str or "quota" in err_str or "resourceexhausted" in err_str:
+                st.warning("⚠️ Google Cloud API rate limit reached. Using calibrated domain fallback.")
+                break
             continue
     st.warning("Live Gemini inference temporarily unavailable. Employing calibrated domain data.")
     return None
 
 def call_gemini_text(prompt, system_instruction=None):
+    """Execute live text inference with strict rate-limit protection."""
     if not active_key:
+        return None
+    if not enforce_api_rate_limit("Text Query"):
         return None
     cascade = [active_model_name] + [m for m in FREE_MODELS_CASCADE if m != active_model_name]
     for m_name in cascade:
@@ -387,7 +431,11 @@ def call_gemini_text(prompt, system_instruction=None):
             model = genai.GenerativeModel(m_name, system_instruction=system_instruction)
             response = model.generate_content(prompt, generation_config={"temperature": 0.0})
             return response.text
-        except Exception:
+        except Exception as e:
+            err_str = str(e).lower()
+            if "429" in err_str or "quota" in err_str or "resourceexhausted" in err_str:
+                st.warning("⚠️ Google Cloud API rate limit reached. Using calibrated domain fallback.")
+                break
             continue
     return None
 
