@@ -31,7 +31,7 @@ flowchart TD
     end
 
     subgraph Intelligence ["Multimodal AI & Heuristics"]
-        GeminiAdapter["Google Gemini 1.5/2.0 Multimodal Pipeline"]
+        GeminiAdapter["Google Gemini Multimodal Pipeline"]
         PromptEngine["Construction Persona Prompt Engine"]
         RuleFallback["Resilient Deterministic Heuristic Fallback"]
     end
@@ -71,7 +71,7 @@ flowchart TD
 - **Fail-Safe Guarantee**: Even if an LLM outputs malformed JSON or times out, the system catches formatting anomalies and sanitizes responses through structured fallback parsers.
 
 #### C. Multimodal AI Intelligence Tier (`backend/app/services/gemini_client.py`)
-- **Technology**: Google Generative AI (`gemini-1.5-flash` / `gemini-2.0-flash` or configurable).
+- **Technology**: Google Generative AI (`gemini-2.5-flash` / `gemini-2.5-flash-lite` / `gemini-flash-lite-latest` or configurable via `GEMINI_MODEL`).
 - **Dual Engine Execution**:
   - **Live Mode**: Calls Gemini API with high-resolution image bytes and specialized construction engineering prompt templates.
   - **Deterministic Engine**: Realistic, domain-calibrated rule-based engine providing instant analysis when no API key is set or when working offline. This guarantees 100% demo uptime and friction-free evaluation by instructors/mentors!

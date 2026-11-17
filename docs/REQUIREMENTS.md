@@ -55,7 +55,7 @@ The **AI-Powered Multimodal Construction Intelligence Platform** is an enterpris
 #### Epic 4: AI Intelligence Layer Implementation
 - **FR-4.1: Multimodal Ingestion Pipeline**:
   - Seamless handling of base64 data URIs and multi-part file uploads.
-  - Dual Execution Mode: Direct Google Gemini 1.5/2.0 API integration + Resilient deterministic rule-based fallback when offline or without API key.
+  - Dual Execution Mode: Direct Google Gemini (`gemini-2.5-flash` / `gemini-flash-lite-latest` / configurable) API integration + Resilient deterministic rule-based fallback when offline or without API key.
 - **FR-4.2: Strict Output Enforcement**:
   - Guaranteed JSON schema compliance via Pydantic model validation. Zero crashing on ill-formatted LLM responses.
 - **FR-4.3: Construction Domain Persona Prompting**:
