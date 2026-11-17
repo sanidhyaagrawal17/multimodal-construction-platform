@@ -40,7 +40,7 @@
 
 Traditional site supervision relies heavily on manual inspections, paper documentation, and subjective field checks. These methods can lead to undetected fall infractions, delayed structural remediation, and scheduling friction.
 
-The **Multimodal Construction Intelligence Platform** assists site teams through five integrated modules:
+The **Multimodal Construction Intelligence Platform** assists site teams through six integrated modules:
 
 1. **Site Safety Inspector (OSHA 29 CFR 1926)**:
    - Multimodal vision inspection identifying workers, verifying head protection (OSHA 1926.100), and evaluating elevated scaffold platforms (OSHA 1926.451).
@@ -187,7 +187,7 @@ The platform includes preloaded samples and clipboard pasting for quick evaluati
     3. `Scene-Level Finding · Guardrails not visible` [OSHA 1926.451(g)(4)(i)]
   - **Scene-Level Finding Banner**: Displayed prominently below the image (`🚨 Scene-Level Finding: Guardrails not visible [OSHA 1926.451(g)(4)(i)] — No box drawn on photo`). Suppressing negative-space bounding boxes eliminates spatial jumping between runs.
   - **Scores**: Typically scores around **~88 / 100** Hazard Score and **~90%** Fall Risk Index (calculated deterministically from detected findings at temperature 0.0).
-  - **Session Quota & Protection**: Each browser session permits up to 15 live vision audits before prompting a page refresh, shielding the shared free-tier Google AI Studio quota from rapid-fire flooding. If an API rate limit occurs, a polite notification appears and the calibrated heuristic engine guarantees zero crashes.
+  - **Session Quota & Protection**: Each browser session permits up to 25 API calls (`MAX_SESSION_API_CALLS = 25` in `app.py`) before prompting a page refresh, shielding the shared free-tier Google AI Studio quota from rapid-fire flooding. If an API rate limit occurs, a polite notification appears and the calibrated heuristic engine guarantees zero crashes.
   - **1-Click Clipboard Export**: Click **"📋 Copy Full Audit Output to Clipboard"** to export the structured Markdown dossier.
 
 ### 2. Crack Diagnostics & ACI 318 (Tab 2)
@@ -210,7 +210,7 @@ The platform includes preloaded samples and clipboard pasting for quick evaluati
 
 ## 🧪 Automated Verification & Test Suite
 
-The platform includes **23 automated unit and integration tests** executed via pytest:
+The platform includes **23 automated backend unit and integration tests** executed via pytest (run in GitHub Actions CI via `.github/workflows/ci.yml`), plus **9 local frontend Vitest component & accessibility tests** (`frontend/src/components/__tests__/`):
 
 ```bash
 cd backend
